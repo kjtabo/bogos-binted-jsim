@@ -1,0 +1,98 @@
+* LAB #2
+* - Dorde, Andre Benedict
+* - Pascual, Eizekiel Pierre
+* - Tabo, Ken Jonree
+
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+* ============================= PAGE ONE =============================
+* IMPORTANT: the 'n' prefix in variables are used to denote an inverted state
+* IMPORTANT: the '_' denotes OR in the fx subckt only
+
+
+* fx circuit with full use of AND and OR gates
+.subckt fx_mockup a b c d e f g out
+    Xabc a b c abc and3
+    Xde d e de and2
+    Xfg f g fg and2
+    Xabc_de_fg abc de fg out or3
+.ends
+
+* Inverting the outputs of NAND and NOR gates used less gates compared to inverting the inputs and then using the complementary gates instead
+* This uses a total of 8 gates
+.subckt fx a b c d e f g out
+    Xnabc a b c nabc nand3
+    Xabc nabc abc inverter
+    Xnde d e nde nand2
+    Xde nde de inverter
+    Xnfg f g nfg nand2
+    Xfg nfg fg inverter
+    Xnabc_de_fg abc de fg nabc_de_fg nor3
+    Xabc_de_fg nabc_de_fg out inverter
+.ends
+
+* Third and final iteration of the fx circuit, using DeMorgan's Law to reduce OUT=ABC+DE+FG to a NAND-friendly form: OUT=!(!(ABC)!(DE)!(FG))
+* Simplification process:
+* ABC+DE+FG=!!(ABC+DE+FG)
+* = !(!(ABC)!(DE)!(FG))
+* This final fx circuit uses a total of 4 gates and is the most efficient solution we have found.
+.subckt fx_three a b c d e f g out
+    Xnabc a b c nabc nand3
+    Xnde d e nde nand2
+    Xnfg f g nfg nand2
+    Xabc_de_fg nabc nde nfg out nand3
+.ends
+
+* fa (full adder) circuit with full use of AND and OR gates
+.subckt ha_mockup a b sum carry
+    Xsum a b sum xor2
+    Xcarry a b carry and2
+.ends
+
+.subckt fa_mockup a b carry_in sum carry_out
+    Xha_one a b ab_sum carry_one ha_mockup
+    Xha_two ab_sum carry_in  sum carry_two ha_mockup
+    Xcarry carry_one carry_two carry_out or2
+.ends
+
+* Similarly, the same approach was used for the full adder. However, for readability, the half adders used in the full adder were made into its own subckt
+
+* The half adder subckt to be used for the full adder
+.subckt ha a b sum carry
+    Xsum a b sum xor2
+    Xncarry a b nab nand2
+    xcarry nab carry inverter
+.ends
+
+* This uses a total of 8 gates
+.subckt fa a b carry_in sum carry_out
+    Xha_one a b ab_sum carry_one ha
+    Xha_two ab_sum carry_in sum carry_two ha
+    Xncarry carry_one carry_two ncarry nor2
+    Xcarry ncarry carry_out inverter
+.ends
+
+* ============================= PAGE TWO =============================
+Xfx clk1 clk2 clk3 clk4 clk5 clk6 clk7 OUT fx
+Xfa clk5 clk6 clk7 sum carry fa
+Xfx_mock clk1 clk2 clk3 clk4 clk5 clk6 clk7 OUT_MOCK fx_mockup
+Xfa_mock clk5 clk6 clk7 sum_mock carry_mock fa_mockup
+Xfx_three clk1 clk2 clk3 clk4 clk5 clk6 clk7 OUT_THREE fx_three
+
+.tran 640ns
+.plot clk1
+.plot clk2
+.plot clk3
+.plot clk4
+.plot clk5
+.plot clk6
+.plot clk7
+.plot OUT
+.plot OUT_MOCK
+.plot OUT_THREE
+.plot sum
+.plot sum_mock
+.plot carry
+.plot carry_mock

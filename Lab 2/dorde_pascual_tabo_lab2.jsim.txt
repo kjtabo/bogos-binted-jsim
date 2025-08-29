@@ -1,0 +1,58 @@
+* LAB #2
+* - Dorde, Andre Benedict
+* - Pascual, Eizekiel Pierre
+* - Tabo, Ken Jonree
+
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+* ============================= PAGE ONE =============================
+* IMPORTANT: the 'n' prefix in variables are used to denote an inverted state
+* IMPORTANT: the '_' denotes OR in the fx subckt only
+
+* Inverting the outputs of NAND and NOR gates used less gates compared to inverting the inputs and then using the complementary gates instead
+* This uses a total of 8 gates
+.subckt fx a b c d e f g out
+    Xnabc a b c nabc nand3
+    Xabc nabc abc inverter
+    Xnde d e nde nand2
+    Xde nde de inverter
+    Xnfg f g nfg nand2
+    Xfg nfg fg inverter
+    Xnabc_de_fg abc de fg nabc_de_fg nor3
+    Xabc_de_fg nabc_de_fg out inverter
+.ends
+
+* Similarly, the same approach was used for the full adder. However, for readability, the half adders used in the full adder were made into its own subckt
+
+* The half adder subckt to be used for the full adder
+.subckt ha a b sum carry
+    Xsum a b sum xor2
+    Xncarry a b nab nand2
+    xcarry nab carry inverter
+.ends
+
+* This uses a total of 8 gates
+.subckt fa a b carry_in sum carry_out
+    Xha_one a b ab_sum carry_one ha
+    Xha_two ab_sum carry_in sum carry_two ha
+    Xncarry carry_one carry_two ncarry nor2
+    Xcarry ncarry carry_out inverter
+.ends
+
+* ============================= PAGE TWO =============================
+Xfx clk1 clk2 clk3 clk4 clk5 clk6 clk7 OUT fx
+Xfa clk5 clk6 clk7 sum carry fa
+
+.tran 640ns
+.plot clk1
+.plot clk2
+.plot clk3
+.plot clk4
+.plot clk5
+.plot clk6
+.plot clk7
+.plot OUT
+.plot sum
+.plot carry
