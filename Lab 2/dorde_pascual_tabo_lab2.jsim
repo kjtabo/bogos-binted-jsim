@@ -74,12 +74,22 @@
     Xcarry ncarry carry_out inverter
 .ends
 
+.subckt fa_three a b carry_in sum carry_out
+    Xab a b ab_sum xor2
+    Xsum ab_sum carry_in sum xor2
+    Xnab a b nab nand2
+    Xnbc b carry_in nbc nand2 
+    Xnac a carry_in nac nand2
+    Xcarry nab nbc nac carry_out nand3
+.ends
+
 * ============================= PAGE TWO =============================
 Xfx clk1 clk2 clk3 clk4 clk5 clk6 clk7 OUT fx
 Xfa clk5 clk6 clk7 sum carry fa
 Xfx_mock clk1 clk2 clk3 clk4 clk5 clk6 clk7 OUT_MOCK fx_mockup
 Xfa_mock clk5 clk6 clk7 sum_mock carry_mock fa_mockup
 Xfx_three clk1 clk2 clk3 clk4 clk5 clk6 clk7 OUT_THREE fx_three
+Xfa_three clk5 clk6 clk7 sum_three carry_three fa_three
 
 .tran 640ns
 .plot clk1
@@ -94,5 +104,7 @@ Xfx_three clk1 clk2 clk3 clk4 clk5 clk6 clk7 OUT_THREE fx_three
 .plot OUT_THREE
 .plot sum
 .plot sum_mock
+.plot sum_three
 .plot carry
 .plot carry_mock
+.plot carry_three
