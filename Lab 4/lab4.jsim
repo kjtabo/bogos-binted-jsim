@@ -9,6 +9,8 @@
 .include "nominal.jsim"
 .include "stdcell.jsim"
 
+Vclk0 clk0 0 pulse(0,5,2.4ns,.1ns,.1ns,2.4ns)
+
 *******************************************************************************
 * Plug-in your full adder and 32-bit ripple-carry adder subcircuits here.
 *******************************************************************************
@@ -109,5 +111,6 @@ Wincr incr[31:0] nrz(0, 5, 50ns, 0ns, 0.001ns, 0.001ns)
 .tran 300ns
 .plot reset
 .plot sd(incr[31:0])
+.plot clk0
 .plot clk1
 .plot sd(reg[31:0])
