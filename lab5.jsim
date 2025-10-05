@@ -29,13 +29,21 @@
 * 32-bit Adder/Subtractor
 *******************************************************************************
 
-.subckt zCheck a[31:0] z
+.subckt zCheckOld a[31:0] z
     Xainv a[31:0] ainv[31:0] inverter
     XnandOne[15:0] ainv[31:16] ainv[15:0] nandOne[15:0] nand2
     XnorTwo[7:0] nandOne[15:8] nandOne[7:0] norTwo[7:0] nor2
     XnandThree[3:0] norTwo[7:4] norTwo[3:0] nandThree[3:0] nand2
     XnorFour[1:0] nandThree[3:2] nandThree[1:0] norFour[1:0] nor2
     XnandFive norFour1 norFour0 final nand2
+    Xfinalinv final z inverter
+.ends
+
+.subckt zCheck a[31:0] z
+    Xainv a[31:0] ainv[31:0] inverter
+    XnandOne[7:0] ainv[31:24] ainv[23:16] ainv[15:8] ainv[7:0] nandOne[7:0] nand4
+    XnorTwo[1:0] nandOne[7:4] nandOne[3:0] norTwo[1:0] nor4
+    XnandThree norTwo1 norTwo0 final nand2
     Xfinalinv final z inverter
 .ends
 
