@@ -42,7 +42,7 @@
 .subckt zCheck a[31:0] z
     Xainv a[31:0] ainv[31:0] inverter
     XnandOne[7:0] ainv[31:24] ainv[23:16] ainv[15:8] ainv[7:0] nandOne[7:0] nand4
-    XnorTwo[1:0] nandOne[7:4] nandOne[3:0] norTwo[1:0] nor4
+    XnorTwo[1:0] nandOne[7:6] nandOne[5:4] nandOne[3:2] nandOne[1:0] norTwo[1:0] nor4
     XnandThree norTwo1 norTwo0 final nand2
     Xfinalinv final z inverter
 .ends
