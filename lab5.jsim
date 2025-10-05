@@ -60,11 +60,11 @@
 
     Xlt op2 n lt and2
     Xltinv lt ltinv inverter
-    Xmux v lt ltinv ltres mux2
+    Xltmux v lt ltinv ltres mux2
 
     Xle eqres ltres leres or2
 
-    Xmux op1 op2 0 eqres ltres leres fcmp0 mux4     
+    Xfinmux op1 op2 0 eqres ltres leres fcmp0 mux4     
 .ends
 
 *******************************************************************************
@@ -76,8 +76,14 @@ Xcmp32 n v z op[2:1] fcmp[31:0] cmp32
 *******************************************************************************
 *******************************************************************************
 
-Wop op0 nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
+Wop0 op0 nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
 + 0 0 0 0 0 1 1 0 0 0 0 0 0 1
+
+Wop1 op1 nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 0 0 0 0 0 1 0 0 0 0 0 0 0 1
+
+Wop2 op2 nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 0 0 0 0 0 0 1 0 0 0 0 0 0 1
 
 Wa a[31:0] nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
 + 0 0x55555555 0 0x55555555 -1 0 0 0xAAAAAAAA 0 0xAAAAAAAA 1 -1 0x80000000 -1
@@ -87,9 +93,12 @@ Wb b[31:0] nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
 
 .tran 700ns
 .plot op0
+.plot op1
+.plot op2
 .plot a[31:0]
 .plot b[31:0]
 .plot fas[31:0]
 .plot n
 .plot v
 .plot z
+.plot fcmp0
