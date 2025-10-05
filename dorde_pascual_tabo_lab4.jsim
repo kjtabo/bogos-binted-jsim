@@ -1,0 +1,176 @@
+*******************************************************************************
+* LAB #4
+* - Dorde, Andre Benedict
+* - Pascual, Eizekiel Pierre
+* - Tabo, Ken Jonree
+*******************************************************************************
+
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+Vclk0 clk0 0 pulse(0,5,2.4ns,.1ns,.1ns,2.4ns)
+Vclk05 clk05 0 pulse(0,5,1.2ns,.1ns,.1ns,1.2ns)
+
+*******************************************************************************
+* Plug-in your full adder and 32-bit ripple-carry adder subcircuits here.
+*******************************************************************************
+.subckt fa a b c_in sum c_out
+  Xab a b ab_sum xor2
+  Xsum ab_sum c_in sum xor2
+  Xnab a b nab nand2
+  Xnbc b c_in nbc nand2 
+  Xnac a c_in nac nand2
+  Xcarry nab nbc nac c_out nand3
+.ends
+
+.subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
+  Xbit[0:31] a[0:31] b[0:31] cin0 cout[0:30] sum[0:31] cout[0:31] fa
+.ends
+
+* 16-bit adder for testing
+.subckt add16 a[15:0] b[15:0] cin0 sum[15:0] cout[15:14]
+    Xbit[0:15] a[0:15] b[0:15] cin0 cout[0:14] sum[0:15] cout[0:15] fa
+.ends
+
+*******************************************************************************
+* Your new counter32 subcircuit code should go here.
+*******************************************************************************
+.subckt counter32 reset a[31:0] f[31:0] clk
+  Xadder a[31:0] f[31:0] 0 sum[31:0] unused[31:30] add32
+  Xmux[0:31] reset#32 sum[31:0] 0#32 z[31:0] mux2 
+  Xdreg[0:31] z[31:0] clk#32 f[31:0] dreg
+.ends
+
+*******************************************************************************
+* counter32 for testing
+*******************************************************************************
+.subckt counter16 reset a[15:0] f[15:0] clk
+    Xadder a[15:0] f[15:0] 0 sum[15:0] unused[15:14] add16
+    Xmux[0:15] reset#16 sum[15:0] 0#16 z[15:0] mux2 
+    Xdreg[0:15] z[15:0] clk#16 f[15:0] dreg
+.ends
+
+*******************************************************************************
+* Pitfall: DON'T use numbers AND iterators in your node names at the same time,
+*          e.g., temp[31:0] and temp2[31:0] will result in conflicts!
+*
+* Also, you may need to use these statements when making your own counter32:
+*
+* .connect node othernode(s)...
+*  = connects the first node to all the subsequent nodes
+*    - For example, ".connect a b[31:0]" connects a to b31, b30, ..., b0.
+*    - You can also connect nodes directly to ground ("false") by saying
+*      ".connect 0 othernode(s)..."
+*    - You can also connect nodes directly to vdd ("true") by saying
+*      ".connect vdd othernode(s)..."
+*
+* Xid s d0 d1 z mux2
+*  = "mux2" defines a 2-way multiplexer circuit.
+*    - If s = 0, node z is set to the value of node d0.
+*    - If s = 1, node z is set to the value of node d1.
+*    - s, d0, d1 and z are SINGLE BITS. As usual, use iterators to create
+*      several multiplexers at once.
+*    - Note that the reset node of your counter32 is only a single bit
+*      (NOT 32 bits), so to use it with multiple multiplexers, use the form
+*      "node#n" to make n copies of the node, e.g., "reset#32".
+*
+* Xid d clk q dreg
+*  = "dreg" defines a flip-flop register q (a single bit of "memory") and sets
+*    it to the value of another node, d.
+*    - Unlike "connect"-ing nodes, the value only gets stored into q when clk
+*      is doing a rising transition (also known as a "positive edge trigger").
+*    - Hint: You will also need iteration for this since we need a 32-bit
+*      register, which means you will also need to make 32 copies of clk.
+*******************************************************************************
+
+*******************************************************************************
+* Finally, it's time to simulate.
+* This circuit block instantiates the counter32 circuit that you just wrote.
+* We pass it a single-bit reset signal, a 32-bit increment value, a 32-bit
+* register, and a clock signal (we just used the JSim-predefined clk1).
+*******************************************************************************
+Xcounter32 reset incr[31:0] reg[31:0] clk1 counter32
+Xcounter16 reset incr[15:0] halfcountreg[15:0] clk0 counter16
+Xfastcounter32 reset incr[31:0] fastreg[31:0] clk0 counter32
+
+*******************************************************************************
+* This "reset" waveform sets up a reset signal that has a delayed start of 15ns
+* and then goes to the next value every 50ns.
+* The values "1 0 0 0 1 0" indicate that the reset signal only turns on twice
+* (at times 15ns and 215ns) for a period of 50ns intervals each, and the signal
+* is turned off otherwise.
+*******************************************************************************
+Wreset reset nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 1 0 0 0 1 0
+
+*******************************************************************************
+* This "incr" waveform sets up a increment value for your counter32 circuit.
+* Note that it does NOT have a delayed start. The values "0 1 3 -1" roughly
+* translate to the following "commands" in Java-like syntax:
+*   reg += 0;  //  0 means don't touch the value
+*   reg++;     //  1 means increment by 1
+*   reg += 3;  //  3 means increment by 3
+*   reg--;     // -1 means decrement by 1
+* But note that these "commands" will happen EVERY positive clock edge (and
+* only when your reset signal is off)!
+*******************************************************************************
+Wincr incr[31:0] nrz(0, 5, 50ns, 0ns, 0.001ns, 0.001ns)
++ 0 1 3 -1
+
+*******************************************************************************
+* Plot our reset waveform, our incr waveform, clk1, and your 32-bit register.
+* Note: sd() displays a range of nodes as a signed decimal (instead of hex)
+*******************************************************************************
+.tran 300ns
+.plot reset
+.plot sd(incr[31:0])
+.plot clk1
+.plot sd(reg[31:0])
+.plot clk0
+.plot sd(fastreg[31:0])
+.plot sd(halfcountreg[15:0])
+
+*******************************************************************************
+* ANSWERS TO GUIDE QUESTIONS
+*******************************************************************************
+* 1. Explain the behavior of the 32-bit register output lines, reg[31:0], as it
+*    is incrementing, decrementing, and resetting.
+*      - In particular, explain the significant delay between when the 
+*        reset/incr[31:0] values change and when the output displays an updated
+*        value.
+*
+*      The reason why there is a delay between reset/incr[31:0] and when the 
+*      output updates is because dreg is a positive-edge triggered D flip flop,
+*      meaning the flip flop’s output only updates when the clock signal 
+*      transitions from 0 to 1. For example, if a slower clock was used in the
+*      D flip flop, the time delay between any change to the input and the 
+*      output updating accordingly would be higher. Additionally, when the 
+*      increment value changes alongside or immediately after the clock’s
+*      rising edge (such as the use of nclk1) and its reset is not at 1, the 
+*      counter does not update its value with the new increment value until
+*      after the next rising edge.
+*
+*
+* 2. What is stopping you from using a super-fast clock to make a super-fast
+*    counter?
+*    
+*      The limiting factor is the propagation delay of the adder. While 
+*      incrementing all negative values or all positive values generally pose 
+*      no issues, incrementing a negative value to a positive value or vice 
+*      versa will result in critical path propagation delay as discussed in 
+*      lab 3. More specifically, this is the same case causing the maximum 
+*      propagation delay of a 32-bit adder shown in class. Thus, if a clock 
+*      with a faster cycle than the propagation delay of 32-bit adder, which 
+*      is roughly 4.8ns, is used, then the whole value cannot be fully 
+*      incremented before the end of the clock cycle.
+*
+*      For example, when counter32 is used with clk0, it can be observed that 
+*      f[31:0] =  -67108828 when 37 is incremented with -1. In hexadecimal, 
+*      -67108828 is 0xFC000024. Coincidentally, 36 in hexadecimal is
+*      0x00000024. This highlights that the adder is essentially not done 
+*      “processing” the input when it gets stored into dreg[0:31]. In this 
+*      example, only the 24 least significant bits are processed to the correct
+*      value while the remaining 8 bits are remnants of the incomplete addition 
+*      process.
+*******************************************************************************

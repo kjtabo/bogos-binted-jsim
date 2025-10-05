@@ -1,0 +1,92 @@
+*******************************************************************************
+* - Dordre, Andre Benedict
+* - Pascual, Eizekiel Pierre
+* - Tabo, Ken Jonree
+*******************************************************************************
+
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+*******************************************************************************
+* Full adder and 32-bit adder circuits.
+*******************************************************************************
+
+.subckt fa a b cin sum cout
+    Xab a b ab_sum xor2
+    Xsum ab_sum cin sum xor2
+    Xnab a b nab nand2
+    Xnbc b cin nbc nand2 
+    Xnac a cin nac nand2
+    Xcarry nab nbc nac cout nand3
+.ends
+
+.subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
+    Xbit[0:31] a[0:31] b[0:31] cin0 cout[0:30] sum[0:31] cout[0:31] fa
+.ends
+
+*******************************************************************************
+* 32-bit Adder/Subtractor
+*******************************************************************************
+
+.subckt zCheck a[31:0] z
+    Xainv a[31:0] ainv[31:0] inverter
+    XnandOne[15:0] ainv[31:16] ainv[15:0] nandOne[15:0] nand2
+    XnorTwo[7:0] nandOne[15:8] nandOne[7:0] norTwo[7:0] nor2
+    XnandThree[3:0] norTwo[7:4] norTwo[3:0] nandThree[3:0] nand2
+    XnorFour[1:0] nandThree[3:2] nandThree[1:0] norFour[1:0] nor2
+    XnandFive norFour1 norFour0 final nand2
+    Xfinalinv final z inverter
+.ends
+
+.subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z 
+    Xbinv b[31:0] binv[31:0] inverter
+    Xmux[31:0] op0#32 b[31:0] binv[31:0] bop[31:0] mux2
+    Xadder a[31:0] bop[31:0] op0 fas[31:0] oflow[31:30] add32
+    
+    .connect fas31 n
+    XvCheck oflow31 oflow30 v xor2
+    XzCheck fas[31:0] z zCheck
+.ends
+
+*******************************************************************************
+* 32-bit Comparator
+*******************************************************************************
+
+.subckt cmp32 n v z op[2:1] fcmp[31:0]
+    .connect 0 fcmp[31:1]
+    
+    Xeq op1 z eqres and2
+
+    Xlt op2 n lt and2
+    Xltinv lt ltinv inverter
+    Xmux v lt ltinv ltres mux2
+
+    
+.ends
+
+*******************************************************************************
+*******************************************************************************
+
+Xas32 a[31:0] b[31:0] op0 fas[31:0] n v z as32
+
+*******************************************************************************
+*******************************************************************************
+
+Wop op0 nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 0 0 0 0 0 1 1 0 0 0 0 0 0 1
+
+Wa a[31:0] nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 0 0x55555555 0 0x55555555 -1 0 0 0xAAAAAAAA 0 0xAAAAAAAA 1 -1 0x80000000 -1
+
+Wb b[31:0] nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 0 0 0x55555555 0x55555555 -1 0 -1 0 0xAAAAAAAA 0xAAAAAAAA -1 1 0x80000000 -1
+
+.tran 700ns
+.plot op0
+.plot a[31:0]
+.plot b[31:0]
+.plot fas[31:0]
+.plot n
+.plot v
+.plot z 

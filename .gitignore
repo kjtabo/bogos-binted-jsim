@@ -1,0 +1,11 @@
+8clocks.jsim
+nominal.jsim
+stdcell.jsim
+
+lab2 sample.jsim
+adder.jsim
+
+*.pdf
+*.txt
+jsim.jar
+
