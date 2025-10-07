@@ -1,0 +1,165 @@
+*******************************************************************************
+* LAB #5
+* - Dorde, Andre Benedict
+* - Pascual, Eizekiel Pierre
+* - Tabo, Ken Jonree
+*******************************************************************************
+
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+Vclk0 clk0 0 pulse(0,5,2.4ns,.1ns,.1ns,2.4ns)
+
+*******************************************************************************
+* Plug-in your full adder and 32-bit ripple-carry adder subcircuits here.
+*******************************************************************************
+.subckt fa a b c_in sum c_out
+  Xab a b ab_sum xor2
+  Xsum ab_sum c_in sum xor2
+  Xnab a b nab nand2
+  Xnbc b c_in nbc nand2 
+  Xnac a c_in nac nand2
+  Xcarry nab nbc nac c_out nand3
+.ends
+
+.subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
+  Xbit[0:31] a[0:31] b[0:31] cin0 cout[0:30] sum[0:31] cout[0:31] fa
+.ends
+
+*******************************************************************************
+* Zero checker (using 4-input gates).
+* Calculating the delays, cd = 0.04, pd = 0.24
+* This makes it slower than using 2-input gates, so it will not be used
+*******************************************************************************
+.subckt z_ckt_old a[0:31] out 
+  Xnor4[0:7] a[0:31] nor4_out[0:7] nor4
+  Xnand4[0:1] nor4_out[0:7] nand4_out[0:1] nand4
+  Xnor2 nand4_out[0:1] out nor2
+.ends
+
+*******************************************************************************
+* Zero checker (using 2-input gates).
+* Calculating the delays, cd = 0.05, pd = 0.21
+* Propagation delay wise, this is faster, so this will be used despite
+* the slower contamination delay
+*******************************************************************************
+.subckt z_ckt a[0:31] out 
+  Xnor2_one[0:15] a[0:31] nor2_one_out[0:15] nor2
+  Xnand2_one[0:7] nor2_one_out[0:15] nand2_one_out[0:7] nand2
+  Xnor2_two[0:3] nand2_one_out[0:7] nor2_two_out[0:3] nor2
+  Xnand2_two[0:1] nor2_two_out[0:3] nand2_two_out[0:1] nand2
+  xnor2_three nand2_two_out[0:1] out nor2
+.ends
+
+*******************************************************************************
+* adder-subtractor subcircuit (Attempt #1)
+* I was not looking at the specs that carefully (my bad) but I used an xor
+* instead of an inverter and mux combination to determine using B or ~B
+*******************************************************************************
+.subckt as32_old a[31:0] b[31:0] op0 fas[31:0] n v z
+  Xbxor[31:0] b[31:0] op0#32 bxor[31:0] xor2
+  Xadd32 a[31:0] bxor[31:0] op0 fas[31:0] cout[31:30] add32
+
+  .connect fas31 n
+  Xv cout[31:30] v xor2
+  Xz fas[31:0] z z_ckt
+.ends
+
+
+*******************************************************************************
+* adder-subtractor subcircuit (Attempt #2)
+*******************************************************************************
+.subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
+  Xinv[31:0] b[31:0] binv[31:0] inverter
+  Xmux[31:0] op0#32 b[31:0] binv[31:0] bmux[31:0] mux2
+  Xadd32 a[31:0] bmux[31:0] op0 fas[31:0] cout[31:30] add32
+
+  .connect fas31 n
+  Xv cout[31:30] v xor2
+  Xz fas[31:0] z z_ckt
+.ends
+
+*******************************************************************************
+* 32-bit comparator subcircuit (attempt #1)
+*******************************************************************************
+.subckt cmp32_old n v z op[2:1] fcmp[31:0]
+  .connect 0 fcmp[31:1]
+  Xlt n v lt xor2
+  Xinv1 lt lt_inv inverter
+  Xinv2 z z_inv inverter
+  Xltz lt_inv z_inv ltz nand2
+  Xmux op[2:1] 0 lt z ltz fcmp0 mux4
+.ends
+
+*******************************************************************************
+* 32-bit comparator subcircuit (attempt #2)
+*******************************************************************************
+.subckt cmp32 n v z op[2:1] fcmp[31:0]
+  .connect 0 fcmp[31:1]
+  Xlt n v lt xor2
+  Xeq z op1 eq nand2
+  Xlt_out lt op2 lt_out nand2
+  Xltz lt_out eq fcmp0 nand2
+.ends
+
+*******************************************************************************
+* Instantiation of as32 and cmp32
+*******************************************************************************
+Xas32 a[31:0] b[31:0] op0 fas[31:0] n v z as32
+Xcmp32 n v z op[2:1] fcmp[31:0] cmp32
+
+*******************************************************************************
+* Tests
+*******************************************************************************
+Wop0 op0 nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 0 0 0 0 0 1 1 0 0 0 0 0 0 1 
++ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+
+Wop1 op1 nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
++ 1 0 1 1 0 1 1 0 1 1 0 1 1 0 1
+
+Wop2 op2 nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
++ 0 1 1 0 1 1 0 1 1 0 1 1 0 1 1 
+
+Wa a[31:0] nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 0 0x55555555 0 0x55555555 -1 0 0 0xAAAAAAAA 0 0xAAAAAAAA 1 -1 0x80000000 -1 
++ 2 2 2 0x80000000 0x80000000 0x80000000 3 3 3 0x7FFFFFFF 0x7FFFFFFF 0x7FFFFFFF 3 3 3
+
+Wb b[31:0] nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 0 0 0x55555555 0x55555555 -1 0 -1 0 0xAAAAAAAA 0xAAAAAAAA -1 1 0x80000000 -1 
++ -3 -3 -3 2 2 2 5 5 5 -2 -2 -2 3 3 3
+
+*******************************************************************************
+* Plot
+*******************************************************************************
+.tran 1450ns
+.plot op0
+.plot op1
+.plot op2
+.plot a[31:0]
+.plot b[31:0]
+.plot fas[31:0]
+.plot n
+.plot v
+.plot z
+.plot fcmp0
+
+*******************************************************************************
+* CRITICAL PATH OF as32 + cmp32
+*******************************************************************************
+*
+* The critical path for the subtracter portion of the circuit would be if -1
+* was subtracted from -1. This is because the add32 is put in a position where
+* the bits from the minuend and the subtrahend are not equal to each other, and
+* the circuit has to wait for the carry in to determine whether there will be a
+* carry out of 1 or 0. The critical path for the comparator portion is when op1
+* and op2 are 1 since they are being used in a NAND gate, and this means that
+* the NAND has to wait and rely on the other input to determine whether it will
+* output a 1 or a 0. Thus, the critical path of the entire system is when -1 is
+* being subtracted from -1 and you are comparing if the subtrahend is less than
+* or equal to the minuend.
+*
+*******************************************************************************
