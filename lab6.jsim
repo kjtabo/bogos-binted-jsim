@@ -26,12 +26,20 @@
     Xbit[0:31] a[0:31] b[0:31] cin0 cout[0:30] sum[0:31] cout[0:31] fa
 .ends
 
-.subckt z_ckt a[0:31] out 
+* UNUSED
+.subckt old_z_ckt a[0:31] out 
   Xnor2_one[0:15] a[0:31] nor2_one_out[0:15] nor2
   Xnand2_one[0:7] nor2_one_out[0:15] nand2_one_out[0:7] nand2
   Xnor2_two[0:3] nand2_one_out[0:7] nor2_two_out[0:3] nor2
   Xnand2_two[0:1] nor2_two_out[0:3] nand2_two_out[0:1] nand2
   xnor2_three nand2_two_out[0:1] out nor2
+.ends
+
+* OPTIMIZED ZERO-CHECKER FOR CIRCUIT SIZE
+.subckt z_ckt a[0:31] out 
+  Xnor2_one[0:7] a[0:31] nor4_one_out[0:7] nor4
+  Xnand2_one[0:1] nor4_one_out[0:7] nand4_one_out[0:1] nand4
+  xnor2_three nand4_one_out[0:1] out nor2
 .ends
 
 .subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
