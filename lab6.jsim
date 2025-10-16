@@ -1,5 +1,5 @@
 *******************************************************************************
-* LAB #5
+* LAB #6
 * - Dorde, Andre Benedict
 * - Pascual, Eizekiel Pierre
 * - Tabo, Ken Jonree
@@ -43,8 +43,13 @@
 .ends
 
 .subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
-  Xinv[31:0] b[31:0] binv[31:0] inverter
-  Xmux[31:0] op0#32 b[31:0] binv[31:0] bmux[31:0] mux2
+  * FORMER WAY OF DECIDING WHETHER OR NOT TO SUBTRACT (64 gates)
+  *
+  * Xinv[31:0] b[31:0] binv[31:0] inverter
+  * Xmux[31:0] op0#32 b[31:0] binv[31:0] bmux[31:0] mux2
+
+  * Changed to only using XOR Gates (32 gates)
+  Xinv[31:0] b[31:0] op0#32 bmux[31:0] xor2
   Xadd32 a[31:0] bmux[31:0] op0 fas[31:0] cout[31:30] add32
 
   .connect fas31 n
