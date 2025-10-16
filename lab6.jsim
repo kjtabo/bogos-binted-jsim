@@ -43,7 +43,7 @@
 .ends
 
 .subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
-  * FORMER WAY OF DECIDING WHETHER OR NOT TO SUBTRACT (64 gates)
+  * Former way of deciding to 2's complement `b` or not (64 gates).
   *
   * Xinv[31:0] b[31:0] binv[31:0] inverter
   * Xmux[31:0] op0#32 b[31:0] binv[31:0] bmux[31:0] mux2
@@ -78,7 +78,7 @@
 .ends
 
 *******************************************************************************
-* Bitshift
+* 32-bit Shifter
 *******************************************************************************
 
 .subckt shift32 a[31:0] b[4:0] op[1:0] fshift[31:0]
@@ -152,3 +152,45 @@ Wf alufn[5:0] nrz(0v,5.0v,60ns,0ns,.1ns,.1ns)
 .plot b[31:0]
 .plot b(alufn[5:0])
 .plot f[31:0]
+
+*******************************************************************************
+* Explain how you optimized your alu32 for circuit size.
+*******************************************************************************
+*
+* The zero-checker was optimized more, circuit-size-wise. Instead of limiting
+* to using only 2-input NORs and 2-input NANDs, 4-input NORs and NANDs were 
+* also used to maximize the number of bits that can be processed with one gate.
+* Granted that the zero-checker was slightly slower due to a higher propagation
+* delay (0.03ns to 0.07ns and 0.05ns to 0.12ns for NANDs and NORs,
+* respectively), it lessened the number of gates used from 31 to 11.
+* 
+* The logic of the full adder/subtracter was changed. In deciding whether to
+* operate on the two’s complement of input b, the NOT and MUXs were replaced
+* with a XOR gate instead. An inefficiency was found in that the as32 would
+* always produce b and ^b for every bit even though only one of each would be
+* used—which is chosen by the MUX. Using a truth table, it can be seen that
+* using the NOT and the MUX have the same output as an XOR gate. This was
+* inspired and based off of the diagram of a full subtractor circuit that we
+* saw back in our PHYS 160: Electronics class. Thus, 32 gates were removed from
+* the total count in the ALU.
+* 
+* The bitwise boolean circuit was pretty straightforward as indicated in the
+* specifications. It is implemented to use a 4-input MUX for every pair of
+* bits. Since the whole premise is using a “programmable” 4-input MUX to
+* replicate logic gates accepting 2 inputs, there is no further way to lessen
+* the number of gates in this subcircuit.
+* 
+* Given how the ALU stores operation codes in binary, it is most intuitive to
+* split the bitshifter to the decimal equivalent of each bit of the op. This
+* results in having a dedicated 16-bit shifter, 8-bit shifter, and so on. This
+* implementation of a 32-bit shifter was optimized by using the same shifting
+* logic for both left and right shifts, accounting also for arithmetic
+* shifting. Through this method, the circuit was made smaller by about 96 gates
+* compared to having dedicated left and right shifts.
+*
+* Since the ALU just puts all of the previously constructed subcircuits
+* together, any optimization in the component parts also becomes an
+* optimization for the ALU, and that’s how we optimized the ALU for circuit
+* size.
+*
+*******************************************************************************
