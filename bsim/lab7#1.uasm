@@ -1,0 +1,58 @@
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+| r0 -> counter
+| r1 -> address1
+| r2 -> address2
+| r3 -> 2nd to prev out
+| r4 -> prev out
+| r5 -> sum
+| r9 -> temp
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+.include beta.uasm
+
+
+        LD(r31, INPUT, r0)   | Loads input. Also serves as counter.
+        ADDC(r1, 4, r1)      | Where to read the second to last output.
+        ADDC(r1, 4, r2)      | Where to read the last output.
+        
+        BEQ(r0, DONE)        | If input is 0, HALT
+
+        ST(r31, OUTPUT, r31) | Stores 0 as the first item in output.
+        CMPEQC(r0, 1, r9)    | Check if asking for only the first term in fib.
+        BT(r9, DONE)         | If input is 1, HALT 
+
+        ADDC(r4, 1, r4)      | Sets last term to 1.
+        ST(r4, OUTPUT, r1)   | Stores 1 as the second item in output.
+        CMPEQC(r0, 2, r9)    | Check if asking for only first two items.
+        BT(r9, DONE)         | if input is 2, store 1 then halt
+
+        SUBC(r0, 2, r0)      | Accounts for first two items being set outside
+                             |   of loop.
+
+LOOP:   ADD(r3, r4, r5)      | Add second to last output and last output and 
+                             |  store in r5.
+        ST(r5, OUTPUT, r2)   | Store r5 as next item in output.
+
+        LD(r1, OUTPUT, r3)   | Loads second to last item in output into r3.
+        LD(r2, OUTPUT, r4)   | Loads last item in output into r4.
+
+        ADDC(r1, 4, r1)      | Increments where to look for second to last
+                             |   output.
+        ADDC(r2, 4, r2)      | Increments where to look for last output.
+
+        SUBC(r0, 1, r0)      | Decrement counter
+        BNE(r0, LOOP)        | Loop while counter is not 0
+
+DONE:   HALT()
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+. = 0x19C
+
+INPUT:
+        LONG(10)
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+OUTPUT: 

@@ -1,0 +1,45 @@
+* LAB #3
+* - Dorde, Andre Benedict
+* - Pascual, Eizekiel Pierre
+* - Tabo, Ken Jonree
+
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+* full adder from lab 2
+.subckt fa a b carry_in sum carry_out
+    Xab a b ab_sum xor2
+    Xsum ab_sum carry_in sum xor2
+    Xnab a b nab nand2
+    Xnbc b carry_in nbc nand2 
+    Xnac a carry_in nac nand2
+    Xcarry nab nbc nac carry_out nand3
+.ends
+
+* cin0: we only expose the first carry bit (cin0) to the rest of the world
+* sum[31:0]: the output
+* cout[31:30]: we only expose the last 2 cout bits
+.subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
+    Xbit0 a0 b0 cin0 sum0 cout0 fa
+    Xbit[1:31] a[1:31] b[1:31] cout[0:30] sum[1:31] cout[1:31] fa
+.ends
+
+* create digital waveforms for testing
+* 0: voltage for 0
+* 5: voltage for 1
+* 20ns: period of the waveform
+* 0ns: amount of time it waits before it starts
+* 0.001ns: the rise and fall duration
+Wa a[31:0] nrz(0, 5, 20ns, 0ns, 0.001ns, 0.001ns)
++ 0x00000000 0x55555555 0x00000000 0x55555555 0xFFFFFFFF 0xAAAAAAAA 0x00000000 0xAAAAAAAA 0x00000001 0xFFFFFFFF 0xFFFF0000 0x00010000 0x0000FFFF
+
+Wb b[31:0] nrz(0, 5, 20ns, 0ns, 0.001ns, 0.001ns)
++ 0x00000000 0x00000000 0x55555555 0x55555555 0xFFFFFFFF 0x00000000 0xAAAAAAAA 0xAAAAAAAA 0xFFFFFFFF 0x00000001 0x00010000 0xFFFF0000 0x00000001
+
+Xadder a[31:0] b[31:0] 0 sum[31:0] cout[31:30] add32
+.tran 260ns
+.plot a[31:0]
+.plot b[31:0]
+.plot sum[31:0]
+.plot cout[31]

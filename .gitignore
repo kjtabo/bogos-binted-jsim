@@ -9,3 +9,4 @@ adder.jsim
 *.txt
 jsim.jar
 
+.DS_Store
