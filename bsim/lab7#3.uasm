@@ -1,0 +1,71 @@
+| r0 -> counter
+| r1 -> key length
+| r2 -> plaintext length
+
+| r6 -> the modulo * 4 (cos memory is 4 smthn smthn)
+| r7 -> where to get key item
+| r10 -> where to get plaintext item
+| r14 -> where to store encrypted item
+
+| MODULO
+| r3 -> div
+| r4 -> mult
+| r5 -> r0 % r1
+
+| r11 -> plaintext item
+| r12 -> key item
+| r13 -> xor result
+
+| r9 -> break
+
+
+
+.include beta.uasm
+
+        LD(r31, KEY, r1)
+        LD(r31, PLAINTEXT, r2)
+        ADDC(r10, 4, r10)
+
+LOOP:   DIV(r0, r1, r3)
+        MUL(r1, r3, r4)
+        SUB(r0, r4, r5)
+
+        LD(r10, PLAINTEXT, r11)
+        MULC(r5, 4, r6)
+        ADDC(r6, 4, r7)
+        LD(r7, KEY, r12)
+
+        XOR(r11, r12, r13)
+        MULC(r0, 4, r14)
+        ST(r13, ENCRYPTED, r14)
+
+        ADDC(r10, 4, r10)
+
+        ADDC(r0, 1, r0)
+        SUB(r2, r0, r9)
+        BNE(r9, LOOP)
+
+DONE:   HALT()
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+. = 0x19C
+
+KEY:
+        LONG(2)
+        LONG(42)
+        LONG(67)
+
+PLAINTEXT:
+        LONG(5)
+        LONG(72)
+        LONG(69)
+        LONG(76)
+        LONG(76)
+        LONG(79)
+
+ENCRYPTED:
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+OUTPUT: 
