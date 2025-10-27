@@ -1,3 +1,10 @@
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+| Lab 7 - In-Place Sorting
+| - Dorde, Andre Benedict 
+| - Pascual, Eizekiel Pierre
+| - Tabo, Ken Jonree
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+|
 | r0 -> array lenght
 | r1 -> index 1
 | r2 -> index 2
@@ -5,35 +12,42 @@
 | r4 -> thing being checked 2
 | r5 -> comparison result
 | r6 -> tracks if a swap was done or not
-
+|
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 .include beta.uasm
 
 
-START:  LD(r31, INPUT, r0)
-        SUBC(r0, 1, r0)
-        ADDC(r31, 0, r6)
-        ADDC(r31, 4, r1)
-        ADDC(r31, 8, r2)
+START:  LD(r31, INPUT, r0) | Loads array length
+        SUBC(r0, 1, r0)    | Subtracts 1 from arr len (there will only be n-1
+                           |   comparisons made)
+        ADDC(r31, 0, r6)   | Sets swap detect to 0 (false)
+        ADDC(r31, 4, r1)   | Sets pointer to first comparison operand 
+        ADDC(r31, 8, r2)   | Sets pointer to second comparison operand
 
-LOOP:   LD(r1, INPUT, r3)
-        LD(r2, INPUT, r4)
+|||||   MAIN LOOP
 
-        CMPLE(r4, r3, r5)
-        BT(r5, SWAP)
+LOOP:   LD(r1, INPUT, r3)  | Loads first operand into r3
+        LD(r2, INPUT, r4)  | Loads second operand into r4
 
-RETURN: ADDC(r1, 4, r1)
-        ADDC(r2, 4, r2)
-        SUBC(r0, 1, r0)
-        BNE(r0, LOOP)
+        CMPLE(r4, r3, r5)  | Compares if r3 is greater than r4 (r4 < r3)
+        BT(r5, SWAP)       | Go to swap logic if comparison yields true
 
-        BF(r6, DONE)
-        BT(r6, START)
+RETURN: ADDC(r1, 4, r1)    | Increments pointer r1 by 4
+        ADDC(r2, 4, r2)    | Increments pointer r2 by 4
+        SUBC(r0, 1, r0)    | Decrements comparison counter by 1
+        BNE(r0, LOOP)      | If comparison counter != 0, continue looping
 
-SWAP:   ST(r4, INPUT, r1)
-        ST(r3, INPUT, r2)
-        ADD(r5, r31, r6)
-        BT(r5, RETURN)
+        BF(r6, DONE)       | If there was no swap (meaning arr is sorted), HALT
+        BT(r6, START)      | If there was a swap (meaning arr is not sorted),
+                           |   go back to the start of the algorithm
+
+|||||   SWAP LOGIC
+
+SWAP:   ST(r4, INPUT, r1)  | Puts contents of r4 into where r3 was
+        ST(r3, INPUT, r2)  | Puts contents of r3 into where r4 was
+        ADD(r5, r31, r6)   | Sets swap detect to 1 (true)
+        BT(r5, RETURN)     | Go back to main loop
 
 DONE:   HALT()
 

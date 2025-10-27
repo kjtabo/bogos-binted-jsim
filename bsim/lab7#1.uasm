@@ -1,5 +1,10 @@
-
 |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+| Lab 7 - Fibonacci Generator
+| - Dorde, Andre Benedict 
+| - Pascual, Eizekiel Pierre
+| - Tabo, Ken Jonree
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+|
 | r0 -> counter
 | r1 -> address1
 | r2 -> address2
@@ -7,6 +12,7 @@
 | r4 -> prev out
 | r5 -> sum
 | r9 -> temp
+|
 |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
 .include beta.uasm
@@ -14,7 +20,7 @@
 
         LD(r31, INPUT, r0)   | Loads input. Also serves as counter.
         ADDC(r1, 4, r1)      | Where to read the second to last output.
-        ADDC(r1, 4, r2)      | Where to read the last output.
+        ADDC(r2, 8, r2)      | Where to read the last output.
         
         BEQ(r0, DONE)        | If input is 0, HALT
 
@@ -51,7 +57,7 @@ DONE:   HALT()
 . = 0x19C
 
 INPUT:
-        LONG(10)
+        LONG(7)
 
 |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 
