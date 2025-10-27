@@ -52,7 +52,7 @@ DONE:   HALT()              | Finish Execution
 |   after your program block.
 | - You may need to adjust this memory location to make more memory space for
 |   your data.
-. = 0x119C
+. = 0x200
 
 | INPUT marks the beginning of the memory block containing the hardcoded
 | user "input".
