@@ -40,7 +40,7 @@ LOOP:   ADDC(r5, 4, r5)     | r5 = r5 + 4
         MOVE(r2, r1)        | r1 = r2
         MOVE(r3, r2)        | r2 = r3
         SUBC(r0, 1, r0)     | r0 = r0 - 1 (decrement the array counter)
-        BNE(r0, LOOP)       | Branch to LOOP if r0 == 0
+        BNE(r0, LOOP)       | Branch to LOOP if r0 != 0
 
 DONE:   HALT()              | Finish Execution
 
