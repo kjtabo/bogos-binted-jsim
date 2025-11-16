@@ -1,0 +1,442 @@
+*******************************************************************************
+* As with the previous labs, replace this header comment with your names!
+* - Dordre, Andre Benedict
+* - Pascual, Eizekiel Pierre
+* - Tabo, Ken Jonree
+*******************************************************************************
+
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+*******************************************************************************
+* Plug-in your full adder and 32-bit ripple-carry (haha no this is CLA now babyyy) adder subcircuits here.
+*******************************************************************************
+.subckt fa a b cin sum cout
+    Xab a b ab_sum xor2
+    Xsum ab_sum cin sum xor2
+    Xnab a b nab nand2
+    Xnbc b cin nbc nand2 
+    Xnac a cin nac nand2
+    Xcarry nab nbc nac cout nand3
+.ends
+
+.subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
+    Xbit[0:31] a[0:31] b[0:31] cin0 cout[0:30] sum[0:31] cout[0:31] fa
+.ends
+
+.subckt add16 a[15:0] b[15:0] cin0 sum[15:0] cout[15:14]
+    Xbit[0:15] a[0:15] b[0:15] cin0 cout[0:14] sum[0:15] cout[0:15] fa
+.ends
+
+*******************************************************************************
+* 16-bit CLA.
+*******************************************************************************
+
+.subckt xor2_fast a b out
+    Xinv_one a not_a inverter
+    Xinv_two b not_b inverter
+    Xnand_one a not_b a_not_b nand2
+    Xnand_two b not_a b_not_a nand2
+    Xnand_out a_not_b b_not_a out nand2
+.ends
+
+.subckt prop_gen a b p g
+    Xp a b p xor2_fast
+    Xnab a b nab nand2
+    Xgen nab g inverter
+.ends
+
+.subckt c_one p0 cin g0 c1
+    Xnand_one p0 cin in0 nand2
+    Xinv_one g0 in1 inverter
+    Xout in[0:1] c1 nand2
+.ends
+
+.subckt c_two p[1:0] cin g[1:0] c2
+    Xnand_one p[1:0] cin in0 nand3
+    Xnand_two p[1] g[0] in1 nand2
+    Xinv_one g[1] in2 inverter
+    Xout in[0:2] c2 nand3
+.ends
+
+.subckt c_three p[2:0] cin g[2:0] c3
+    Xnand_one p[2:0] cin in0 nand4
+    Xnand_two p[2:1] g[0] in1 nand3
+    Xnand_three p[2] g[1] in2 nand2
+    Xinv_one g[2] in3 inverter
+    Xout in[0:3] c3 nand4 
+.ends
+
+.subckt c_four p[3:0] cin g[3:0] c4
+    Xnor_one_n_one p[3:2] interm_one nand2
+    Xnor_one_n_two p[1:0] cin interm_two nand3
+    Xnor_one interm_one interm_two in0 nor2
+
+    Xnand_one p[3:1] g[0] interm_three nand4
+    Xinv_one interm_three in1 inverter
+
+    Xnand_two p[3:2] g[1] interm_four nand3
+    Xinv_two interm_four in2 inverter
+
+    Xnand_three p[3] g[2] interm_five nand2
+    Xinv_three interm_five in3 inverter
+
+    .connect g[3] in4
+    
+    Xout_n_one in[0:1] out_interm_one nor2
+    Xout_n_two in[2:4] out_interm_two nor3
+    Xout out_interm_one out_interm_two c4 nand2
+.ends
+
+.subckt 4cla_sum_only p[3:0] g[3:0] cin sum[3:0] c[3:0]
+    Xc_one p[0] cin g[0] c0 c_one
+    Xc_two p[1:0] cin g[1:0] c1 c_two
+    Xc_three p[2:0] cin g[2:0] c2 c_three
+    Xc_four p[3:0] cin g[3:0] c3 c_four
+    Xsum c[2:0] cin p[3:0] sum[3:0] xor2_fast
+.ends
+
+.subckt 4clu p[3:0] g[3:0] cin c[3:0]
+    Xc_one p[0] cin g[0] c0 c_one
+    Xc_two p[1:0] cin g[1:0] c1 c_two
+    Xc_three p[2:0] cin g[2:0] c2 c_three
+    Xc_four p[3:0] cin g[3:0] c3 c_four
+.ends
+
+.subckt group_p p[3:0] group_p
+    Xnand_one p[3:0] ngroup_p nand4
+    Xinv_one ngroup_p group_p inverter
+.ends
+
+.subckt group_g p[3:0] g[3:0] group_g
+    Xnand_one p[3:1] g[0] in0 nand4
+    Xnand_two p[3:2] g[1] in1 nand3
+    Xnand_three p[3] g[2] in2 nand2
+    Xinv_four g[3] in3 inverter
+    Xout in[3:0] group_g nand4
+.ends
+
+.subckt group_pg p[3:0] g[3:0] group_p group_g
+    Xgroup_p p[3:0] group_p group_p
+    Xgroup_g p[3:0] g[3:0] group_g group_g
+.ends
+
+.subckt 4group_pg p[15:0] g[15:0] group_p[3:0] group_g[3:0]
+    Xgroup_pg0 p[3:0] g[3:0] group_p0 group_g0 group_pg
+    Xgroup_pg1 p[7:4] g[7:4] group_p1 group_g1 group_pg
+    Xgroup_pg2 p[11:8] g[11:8] group_p2 group_g2 group_pg
+    Xgroup_pg3 p[15:12] g[15:12] group_p3 group_g3 group_pg
+.ends
+
+.subckt 4_4cla_sum_only p[15:0] g[15:0] group_c[3:0] sum[15:0] c[15:0]
+    X4cla0 p[3:0] g[3:0] group_c[0] sum[3:0] c[3:0] 4cla_sum_only
+    X4cla1 p[7:4] g[7:4] group_c[1] sum[7:4] c[7:4] 4cla_sum_only
+    X4cla2 p[11:8] g[11:8] group_c[2] sum[11:8] c[11:8] 4cla_sum_only
+    X4cla3 p[15:12] g[15:12] group_c[3] sum[15:12] c[15:12] 4cla_sum_only
+.ends
+
+.subckt 16cla a[15:0] b[15:0] cin sum[15:0] c[15:14] g[15:0] group_p[3:0] group_g[3:0] group_c[3:0]
+    Xp_g[15:0] a[15:0] b[15:0] p[15:0] g[15:0] prop_gen
+
+    X4group_pg p[15:0] g[15:0] group_p[3:0] group_g[3:0] 4group_pg
+
+    X16cla_carry group_p[3:0] group_g[3:0] cin group_c[3:0] 4clu
+
+    X4_4cla p[15:0] g[15:0] group_c[2:0] cin sum[15:0] c[15:0] 4_4cla_sum_only
+.ends
+
+.subckt 32cla a[31:0] b[31:0] cin sum[31:0] c[31:30]
+    Xp_g[31:0] a[31:0] b[31:0] p[31:0] g[31:0] prop_gen
+    X4group_pg p[15:0] g[15:0] group_p[3:0] group_g[3:0] 4group_pg
+    X16cla_carry group_p[3:0] group_g[3:0] cin group_c[3:0] 4clu
+    X4_4cla p[15:0] g[15:0] group_c[2:0] cin sum[15:0] c[15:0] 4_4cla_sum_only
+
+    X16_group_pg group_p[3:0] group_g[3:0] 16_p 16_g group_pg
+    Xc_one 16_p cin 16_g 16_c c_one
+
+    X16_4group_pg p[31:16] g[31:16] group_p[7:4] group_g[7:4] 4group_pg
+    X16_cla_carry group_p[7:4] group_g[7:4] 16_c group_c[7:4] 4clu
+    X16_4_4cla p[31:16] g[31:16] group_c[6:4] 16_c sum[31:16] c[31:16] 4_4cla_sum_only
+.ends
+
+*******************************************************************************
+* 4-bit CLA.
+*******************************************************************************
+
+.subckt 4cla a[3:0] b[3:0] cin sum[3:0] c[4:3] g[3:0]
+    Xp_g[3:0] a[3:0] b[3:0] p[3:0] g[3:0] prop_gen
+    Xc_one p[0] cin g[0] c1 c_one
+    Xc_two p[1:0] cin g[1:0] c2 c_two
+    Xc_three p[2:0] cin g[2:0] c3 c_three
+    Xc_four p[3:0] cin g[3:0] c4 c_four   
+    Xsum c[3:1] cin p[3:0] sum[3:0] xor2_fast
+.ends
+
+*******************************************************************************
+* 32-bit fastest CLA. reference: https://ieeexplore.ieee.org/document/1409882
+*******************************************************************************
+.subckt mpfa a b cin sum p not_g
+    Xp a b p xor2_fast
+    Xnot_g a b not_g nand2
+    Xsum p cin sum xor2_fast
+.ends
+
+.subckt 4bit_carry_one cin p not_g c1
+    Xnand2_one p cin interm0 nand2
+    Xout not_g interm0 c1 nand2
+.ends
+
+.subckt 4bit_carry_two cin p[1:0] not_g1 g[0] c2
+    Xnand_one p[1] g[0] interm0 nand2
+    Xnand_two p[1:0] cin interm1 nand3
+    Xout not_g1 interm[1:0] c2 nand3
+.ends
+
+.subckt 4bit_carry_three cin p[2:0] not_g2 g[1:0] c3
+    Xnand_one p[2] g[1] interm0 nand2
+    Xnand_two p[2:1] g[0] interm1 nand3
+    Xnand_three p[2:0] cin interm2 nand4
+    Xout interm[2:0] not_g2 c3 nand4
+.ends
+
+.subckt 4bit_group_p p[3:0] group_p
+    Xnand_one p[3:0] ngroup_p nand4
+    Xout ngroup_p group_p inverter
+.ends
+
+.subckt 4bit_group_g p[3:1] not_g3 g[2:0] group_g
+    Xout g[0] p[3:1] not_g3 g[2:1] group_g 4bit_carry_three
+.ends
+
+.subckt 16bit_carry_one cin p g c1
+    Xinv_one g not_g inverter
+    Xnand_one p cin interm0 nand2
+    Xout not_g interm0 c1 nand2 
+.ends
+
+.subckt 16bit_carry_two cin p[1:0] g[1:0] c2
+    Xinv_one g1 not_g1 inverter
+    Xnand_one p1 g0 interm0 nand2
+    Xnand_two p[1:0] cin interm1 nand3
+    Xout not_g1 interm[0:1] c2 nand3
+.ends
+
+.subckt 16bit_carry_three cin p[2:0] g[2:0] c3
+    Xinv_one g2 not_g2 inverter
+    Xnand_one p2 g1 interm0 nand2
+    Xnand_two p[2:1] g0 interm1 nand3
+    Xnand_three p[2:0] cin interm2 nand4
+    Xout not_g2 interm[0:2] c3 nand4
+.ends
+
+.subckt 16bit_group_g p[3:1] g[3:0] group_g
+    Xinv_one g3 not_g3 inverter
+    Xout p[3:1] not_g3 g[2:0] group_g 4bit_group_g
+.ends
+
+.subckt 4bit_mcla a[3:0] b[3:0] c0 sum[3:0] c[3:1] group_p group_g
+    Xmpfa0 a0 b0 c0 sum0 p[0] not_g[0] mpfa
+    Xinv_one not_g[0] g[0] inverter
+    Xcarry_one c0 p[0] not_g[0] c1 4bit_carry_one
+
+    Xmpfa1 a1 b1 c1 sum1 p[1] not_g[1] mpfa
+    Xinv_two not_g[1] g[1] inverter
+    Xcarry_two c0 p[1:0] not_g[1] g[0] c2 4bit_carry_two
+
+    Xmpfa2 a2 b2 c2 sum2 p[2] not_g[2] mpfa
+    Xinv_three not_g[2] g[2] inverter
+    Xcarry_three c0 p[2:0] not_g[2] g[1:0] c3 4bit_carry_three
+
+    Xmpfa3 a3 b3 c3 sum3 p[3] not_g[3] mpfa
+    Xgroup_p p[3:0] group_p 4bit_group_p
+    Xgroup_g p[3:1] not_g[3] g[2:0] group_g 4bit_group_g
+.ends
+
+.subckt 16bit_mcla a[15:0] b[15:0] c0 sum[15:0] c[15:1] group_p group_g
+    Xmcla0 a[3:0] b[3:0] c0 sum[3:0] c[3:1] p[0] g[0] 4bit_mcla
+    Xcarry_one c0 p0 g0 c4 16bit_carry_one
+
+    Xmcla1 a[7:4] b[7:4] c4 sum[7:4] c[7:5] p[1] g[1] 4bit_mcla
+    Xcarry_two c0 p[1:0] g[1:0] c8 16bit_carry_two
+
+    Xmcla2 a[11:8] b[11:8] c8 sum[11:8] c[11:9] p[2] g[2] 4bit_mcla
+    Xcarry_three c0 p[2:0] g[2:0] c12 16bit_carry_three
+
+    Xmcla3 a[15:12] b[15:12] c12 sum[15:12] c[15:13] p[3] g[3] 4bit_mcla
+    Xgroup_p p[3:0] group_p 4bit_group_p
+    Xgroup_g p[3:1] g[3:0] group_g 16bit_group_g
+.ends
+
+.subckt 32bit_mcla a[31:0] b[31:0] c0 sum[31:0] c[32:31]
+    X16mcla0 a[15:0] b[15:0] c0 sum[15:0] c[15:1] p[0] g[0] 16bit_mcla
+    Xcarry_one c0 p0 g0 c16 16bit_carry_one
+
+    X16mcla1 a[31:16] b[31:16] c16 sum[31:16] c[31:17] p[1] g[1] 16bit_mcla
+    Xcarry_two c0 p[1:0] g[1:0] c32 16bit_carry_two
+.ends
+
+*******************************************************************************
+* Your new counter32 subcircuit code should go here.
+*******************************************************************************
+
+.subckt counter32 reset a[31:0] f[31:0] clk
+*    Xmx reset#32 sum[31:0] 0#32 z[31:0] mux2
+*    Xreg[0:31] z[31:0] clk#32 f[31:0] dreg
+*    Xinc[0:31] a[31:0] f[31:0] 0 sum[31:0] trash[31:30] add32
+
+    Xadder a[31:0] f[31:0] 0 sum[31:0] unused[31:30] add32
+    Xmux[0:31] reset#32 sum[31:0] 0#32 z[31:0] mux2 
+    Xdreg[0:31] z[31:0] clk#32 f[31:0] dreg
+.ends
+
+.subckt counter16 reset a[15:0] f[15:0] clk
+*    Xmx reset#32 sum[31:0] 0#32 z[31:0] mux2
+*    Xreg[0:31] z[31:0] clk#32 f[31:0] dreg
+*    Xinc[0:31] a[31:0] f[31:0] 0 sum[31:0] trash[31:30] add32
+
+    Xadder a[15:0] f[15:0] 0 sum[15:0] unused[15:14] add16
+    Xmux[0:15] reset#16 sum[15:0] 0#16 z[15:0] mux2 
+    Xdreg[0:15] z[15:0] clk#16 f[15:0] dreg
+.ends
+
+.subckt counter16_cla reset a[15:0] f[15:0] clk g[15:0] group_p[3:0] group_g[3:0] group_c[3:0] 
+*    Xmx reset#32 sum[31:0] 0#32 z[31:0] mux2
+*    Xreg[0:31] z[31:0] clk#32 f[31:0] dreg
+*    Xinc[0:31] a[31:0] f[31:0] 0 sum[31:0] trash[31:30] add32
+
+    Xadder a[15:0] f[15:0] 0 sum[15:0] unused[15:14] g[15:0] group_p[3:0] group_g[3:0] group_c[3:0] 16cla
+    Xmux[0:15] reset#16 sum[15:0] 0#16 z[15:0] mux2 
+    Xdreg[0:15] z[15:0] clk#16 f[15:0] dreg
+.ends
+
+.subckt counter32_cla reset a[31:0] f[31:0] clk
+*    Xmx reset#32 sum[31:0] 0#32 z[31:0] mux2
+*    Xreg[0:31] z[31:0] clk#32 f[31:0] dreg
+*    Xinc[0:31] a[31:0] f[31:0] 0 sum[31:0] trash[31:30] add32
+
+    Xadder a[31:0] f[31:0] 0 sum[31:0] unused[31:30] 32cla
+    Xmux[0:31] reset#32 sum[31:0] 0#32 z[31:0] mux2 
+    Xdreg[0:31] z[31:0] clk#32 f[31:0] dreg
+.ends
+
+.subckt counter32_mcla reset a[31:0] f[31:0] clk
+*    Xmx reset#32 sum[31:0] 0#32 z[31:0] mux2
+*    Xreg[0:31] z[31:0] clk#32 f[31:0] dreg
+*    Xinc[0:31] a[31:0] f[31:0] 0 sum[31:0] trash[31:30] add32
+
+    Xadder a[31:0] f[31:0] 0 sum[31:0] unused[31:30] 32bit_mcla
+    Xmux[0:31] reset#32 sum[31:0] 0#32 z[31:0] mux2 
+    Xdreg[0:31] z[31:0] clk#32 f[31:0] dreg
+.ends
+
+.subckt counter4 reset a[3:0] f[3:0] clk g[3:0]
+*    Xmx reset#32 sum[31:0] 0#32 z[31:0] mux2
+*    Xreg[0:31] z[31:0] clk#32 f[31:0] dreg
+*    Xinc[0:31] a[31:0] f[31:0] 0 sum[31:0] trash[31:30] add32
+
+    Xadder a[3:0] f[3:0] 0 sum[3:0] unused[3:2] g[3:0] 4cla
+    Xmux[0:3] reset#4 sum[3:0] 0#4 z[3:0] mux2 
+    Xdreg[0:3] z[3:0] clk#4 f[3:0] dreg
+.ends
+
+*******************************************************************************
+* Pitfall: DON'T use numbers AND iterators in your node names at the same time,
+*          e.g., temp[31:0] and temp2[31:0] will result in conflicts!
+*
+* Also, you may need to use these statements when making your own counter32:
+*
+* .connect node othernode(s)...
+*  = connects the first node to all the subsequent nodes
+*    - For example, ".connect a b[31:0]" connects a to b31, b30, ..., b0.
+*    - You can also connect nodes directly to ground ("false") by saying
+*      ".connect 0 othernode(s)..."
+*    - You can also connect nodes directly to vdd ("true") by saying
+*      ".connect vdd othernode(s)..."
+*
+* Xid s d0 d1 z mux2
+*  = "mux2" defines a 2-way multiplexer circuit.
+*    - If s = 0, node z is set to the value of node d0.
+*    - If s = 1, node z is set to the value of node d1.
+*    - s, d0, d1 and z are SINGLE BITS. As usual, use iterators to create
+*      several multiplexers at once.
+*    - Note that the reset node of your counter32 is only a single bit
+*      (NOT 32 bits), so to use it with multiple multiplexers, use the form
+*      "node#n" to make n copies of the node, e.g., "reset#32".
+*
+* Xid d clk q dreg
+*  = "dreg" defines a flip-flop register q (a single bit of "memory") and sets
+*    it to the value of another node, d.
+*    - Unlike "connect"-ing nodes, the value only gets stored into q when clk
+*      is doing a rising transition (also known as a "positive edge trigger").
+*    - Hint: You will also need iteration for this since we need a 32-bit
+*      register, which means you will also need to make 32 copies of clk.
+*******************************************************************************
+
+*******************************************************************************
+* Finally, it's time to simulate.
+* This circuit block instantiates the counter32 circuit that you just wrote.
+* We pass it a single-bit reset signal, a 32-bit increment value, a 32-bit
+* register, and a clock signal (we just used the JSim-predefined clk1).
+*******************************************************************************
+Xcounter32 reset incr[31:0] reg[31:0] clk1 counter32
+
+
+Vclk0 clk0 0 pulse(0,5,2.4ns,.1ns,.1ns,2.4ns)
+Vclk05 clk05 0 pulse(0,5,1.2ns,.1ns,.1ns,1.2ns)
+Vclk025 clk025 0 pulse(0,5,0.8ns,.1ns,.1ns,0.8ns)
+Xcounter16 reset incr[15:0] halffastreg[15:0] clk0 counter16
+Xfastcounter32 reset incr[31:0] fastreg[31:0] clk0 counter32
+Xfastcounter32_cla reset incr[31:0] fastcla[31:0] clk025 counter32_cla
+Xfastcounter32_mcla reset incr[31:0] fastmcla[31:0] clk025 counter32_mcla
+Xcounter16_fast reset incr[15:0] halffastreg_cla[15:0] clk0 g[15:0] group_p[3:0] group_g[3:0] group_c[3:0] counter16_cla
+Xcounter4 reset incr[3:0] fourreg[3:0] clk0 g_four[3:0] counter4
+
+*******************************************************************************
+* This "reset" waveform sets up a reset signal that has a delayed start of 15ns
+* and then goes to the next value every 50ns.
+* The values "1 0 0 0 1 0" indicate that the reset signal only turns on twice
+* (at times 15ns and 215ns) for a period of 50ns intervals each, and the signal
+* is turned off otherwise.
+*******************************************************************************
+Wreset reset nrz(0, 5, 50ns, 15ns, 0.001ns, 0.001ns)
++ 1 0 0 1 0 0 
+
+*******************************************************************************
+* This "incr" waveform sets up a increment value for your counter32 circuit.
+* Note that it does NOT have a delayed start. The values "0 1 3 -1" roughly
+* translate to the following "commands" in Java-like syntax:
+*   reg += 0;  //  0 means don't touch the value
+*   reg++;     //  1 means increment by 1
+*   reg += 3;  //  3 means increment by 3
+*   reg--;     // -1 means decrement by 1
+* But note that these "commands" will happen EVERY positive clock edge (and
+* only when your reset signal is off)!
+*******************************************************************************
+Wincr incr[31:0] nrz(0, 5, 50ns, 0ns, 0.001ns, 0.001ns)
++ 0 1 1 -1 1 1
+
+*******************************************************************************
+* Plot our reset waveform, our incr waveform, clk1, and your 32-bit register.
+* Note: sd() displays a range of nodes as a signed decimal (instead of hex)
+*******************************************************************************
+.tran 300ns
+.plot reset
+.plot sd(incr[31:0])
+.plot clk1
+.plot sd(reg[31:0])
+.plot clk0
+.plot sd(fastreg[31:0])
+.plot sd(fastcla[31:0])
+.plot sd(fastmcla[31:0])
+.plot clk05
+.plot halffastreg_cla[15:0]
+* .plot g[15:0]
+* .plot group_c[3:0]
+* .plot group_p[3:0]
+* .plot group_g[3:0]
+.plot fourreg[3:0]
+.plot g_four[3:0]
+.plot sd(halffastreg[15:0])
+.plot sd(halffastreg_cla[15:0])
+.plot sd(fourreg[3:0])

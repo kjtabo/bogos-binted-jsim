@@ -128,6 +128,12 @@
     Xgen[3:0] nab[3:0] g[3:0] inverter
 .ends
 
+.subckt prop_gen a b p g0
+    Xp a b p xor2_fast
+    Xnab a b nab nand2
+    Xgen nab g inverter
+.ends
+
 .subckt c_one p0 cin g0 c1
     Xnand_one p0 cin in_one nand2
     Xinv_one g0 in_two inverter
@@ -165,13 +171,57 @@
     Xout out_interm_one out_interm_two c4 nand2
 .ends
 
-.subckt 4cla a[3:0] b[3:0] cin sum[3:0] cout
+.subckt 4cla a[3:0] b[3:0] cin sum[3:0] c[3:0]
     Xp_g a[3:0] b[3:0] p[3:0] g[3:0] 4cla_prop_gen
-    Xc_one p[0] cin g[0] c1 c_one
-    Xc_two p[1:0] cin g[1:0] c2 c_two
-    Xc_three p[2:0] cin g[2:0] c3 c_three
-    Xc_four p[3:0] cin g[3:0] cout c_four   
+    Xc_one p[0] cin g[0] c0 c_one
+    Xc_two p[1:0] cin g[1:0] c1 c_two
+    Xc_three p[2:0] cin g[2:0] c2 c_three
+    Xc_four p[3:0] cin g[3:0] c3 c_four
     Xsum c[3:1] cin p[3:0] sum[3:0] xor2_fast
+.ends
+
+.subckt 4cla_sum_only p[3:0] g[3:0] cin sum[3:0] c[3:0]
+    Xc_one p[0] cin g[0] c0 c_one
+    Xc_two p[1:0] cin g[1:0] c1 c_two
+    Xc_three p[2:0] cin g[2:0] c2 c_three
+    Xc_four p[3:0] cin g[3:0] c3 c_four
+    Xsum c[3:1] cin p[3:0] sum[3:0] xor2_fast
+.ends
+
+.subckt 4cla_logic_only p[3:0] g[3:0] cin c[3:0]
+    Xc_one p[0] cin g[0] c0 c_one
+    Xc_two p[1:0] cin g[1:0] c1 c_two
+    Xc_three p[2:0] cin g[2:0] c2 c_three
+    Xc_four p[3:0] cin g[3:0] c3 c_four group_g
+.ends
+
+.subckt group_p p[3:0] group_p
+    Xnand_one p[3:0] ngroup_p nand4
+    Xinv_one ngroup_p group_p inverter
+.ends
+
+.subckt group_g p[3:0] g[3:0] group_g
+    Xnand_one p[3:1] g[0] interm_three nand4
+    Xinv_one interm_three in_two inverter 
+    Xnand_two p[3:2] g[1] interm_four nand3
+    Xinv_two interm_four in_three inverter
+    Xnand_three p[3] g[2] interm_five nand2
+    Xinv_three interm_five in_four inverter
+    Xinv_four g[3] in_five inverter
+    Xout_n_one in_one in_two out_interm_one nor2
+    Xout_n_two in_three in_four in_five out_interm_two nor3
+.ends
+
+.subckt group_pg p[3:0] g[3:0] group_p group_g
+    Xgroup_p p[3:0] group_p group_p
+    Xgroup_g p[3:0] g[3:0] group_g group_g
+.ends
+
+.subckt 16cla a[15:0] b[15:0] cin sum[15:0] c[15:14]
+    Xp_g[15:0] a[15:0] b[15:0] p[15:0] g[15:0] prop_gen
+    Xgroup_pg p[15:0] g[15:0] group_p[3:0] group_g[3:0] group_pg
+    X16cla_carry group_p[3:0] group_g[3:0] cin group_c[3:0] 4cla_logic_only
+    X4cla p[15:0] g[15:0] cin group_c[2:0] sum[15:0] c[15:0] 4cla_sum_only
 .ends
 
 
