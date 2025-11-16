@@ -82,14 +82,11 @@ Xregisters  vdd  0    0      ra1_[4:0]  rd1_[31:0]
 *       the werf_ signal is forced OFF; otherwise, it should pass through the
 *       original werf signal.
 *******************************************************************************
-* .connect werf werf_
-
-* witness this fuckass code
-* for ICE: fix this abomnation
-Xand_one wa[4:1] and_one and4
-Xand_two wa0 and_one and_two and2
-Xinv and_two res inverter
-Xand werf res werf_ and2
+Xnand_one wa[4:3] nand_one nand2
+Xnand_two wa[2:0] nand_two nand3
+Xnor_one nand_one nand_two res nor2
+Xinv_werf werf werf_inv inverter
+Xnor_two res werf_inv werf_ nor2
 
 *******************************************************************************
 * Xcontrol is a read-only memory (ROM) that defines what to feed into the
@@ -219,3 +216,49 @@ Xjdisplayb wr_werfs[2:0]    wr werf werf_          join
 .plot d(mema[8:0])
 .plot sd(memrd[31:0])
 .plot sd(memwd[31:0])
+
+*******************************************************************************
+* ANSWERS TO GUIDE QUESTIONS
+*******************************************************************************
+* 1. What is the true purpose of the additional Z input (on top of the
+*    instruction opcode inputs) in the Xcontrol block?
+*
+*      The main things affected by the Z input are the branch instructions.
+*      Since the decision of branching does not depend on the instruction
+*      opcode inputs alone but also on the equality of the data to zero, it
+*      needs a separate input from a zero-checker for it to properly execute.
+*
+* 2. What is the true purpose of setting the invalid instructions’ control
+*    logic output to the constant 0b11000000000000?
+*
+*      This is the set control logic output because doing so would make the
+*      processes called upon harmless. Two of the most important parts of that
+*      instruction are the 2 least significant bits which represent Wr and WERF
+*      which both write data. If the values of these are 0, then they are not
+*      enabled, and no data already existing in the system will be overwritten
+*      by potentially harmful garbage data. The value for the PCSEL of 11 is
+*      also important because this value indicates that an illegal operation
+*      was called and this will lead to termination. The values of RA2SEL,
+*      WDSEL don’t really matter as much since they just determine where to
+*      read from, and since that data won’t be written anywhere, it doesn’t
+*      matter what they are, hence why they are dontcare values. Meanwhile,
+*      ALUFN of 000000 refers to the ADD function which also doesn’t really
+*      matter because whatever value was read from and will be added together
+*      won’t be written anyway. Overall, this makes sure that the invalid
+*      instruction does not cause any damage to already existing data. 
+*
+* 3. Does your Lab 7 program (that you yourself provided) represent a good
+*    number of opcodes that your control logic supports? What’s the functional
+*    coverage? (i.e., which opcodes did you implement in your control logic
+*    table, and which ones are actually exercised by your Lab 7 program)?
+*
+*      All opcodes were implemented in the control logic table. The Lab 7
+*      program we chose was the symmetric stream cipher with a pre-generated
+*      keystream, and it made use of the following instructions: LD, ADDC, BEQ,
+*      ST, BNE, MULC, XOR, CMPLT, CMPEQ, and HALT. Out of the three programs in
+*      Lab 7, this one used the most different types of functions. It also
+*      covers the register-register, register-constant, conditionals, load,
+*      store, and halt instructions. Thus, we can say that the Lab 7 program
+*      represents a good number of the opcodes that the control logic supports.
+*
+*******************************************************************************
