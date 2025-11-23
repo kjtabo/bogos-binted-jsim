@@ -7,7 +7,6 @@ adder.jsim
 
 *.pdf
 *.txt
-*.jar
-beta.uasm
+jsim.jar
 
 .DS_Store
