@@ -1,0 +1,80 @@
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+| Lab 7 - Symmetric Stream Cipher
+| - Dorde, Andre Benedict 
+| - Pascual, Eizekiel Pierre
+| - Tabo, Ken Jonree
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+|
+| r0 -> plaintext counter
+| r1 -> key length
+| r2 -> plaintext length
+| r3 -> key counter
+|
+| r6 -> where to get key item
+| r10 -> where to get plaintext item
+| r14 -> where to store encrypted item
+|
+| r11 -> plaintext item
+| r12 -> key item
+| r13 -> xor result
+|
+| r9 -> break
+|
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+.include beta.uasm
+
+
+        LD(r31, KEY, r1)        | Load key length
+        LD(r31, PLAINTEXT, r2)  | Load plaintext length
+        ADDC(r3, 1, r3)         | Start at 1st key item
+        ADDC(r10, 4, r10)       | Sets where to read first plaintext item
+
+LOOP:   
+        CMPLT(r1, r3, r4)       | Check if key counter exceeds key length
+        BT(r4, RESETKEY)        | If it exceeds, reset key counter to 1
+
+        LD(r10, PLAINTEXT, r11) | Load first plaintext item into r11
+        MULC(r3, 4, r6)         | Sets where to read key item
+        LD(r6, KEY, r12)        | Loads corresponding key item to r12
+
+        XOR(r11, r12, r13)      | XOR plaintext and key then store in r13
+        MULC(r0, 4, r14)        | Sets where to store encrypted item
+        ST(r13, ENCRYPTED, r14) | Stores enc item
+
+        ADDC(r10, 4, r10)       | Increments plaintext item pointer by 4
+
+        ADDC(r3, 1, r3)         | Increments key item index by 1
+        ADDC(r0, 1, r0)         | increments plaintext counter by 1
+        CMPEQ(r0, r2, r9)       | Check if plaintext counter is equal to length
+        BF(r9, LOOP)            | If false, continue looping
+        BT(R9, DONE)            | If true, HALT
+
+RESETKEY:
+        ADDC(r31, 1, r3)        | Reset r3 to 1
+        BT(r4, LOOP)            | Go back to main loop
+
+DONE:   HALT()
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+. = 0x19C
+
+KEY:
+        LONG(2)
+        LONG(42)
+        LONG(67)
+
+PLAINTEXT:
+        LONG(5)
+        LONG(72)
+        LONG(69)
+        LONG(76)
+        LONG(76)
+        LONG(79)
+
+ENCRYPTED:
+
+|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+
+OUTPUT: 

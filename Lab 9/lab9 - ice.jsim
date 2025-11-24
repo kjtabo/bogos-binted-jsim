@@ -19,7 +19,7 @@
 Xmemory  vdd  0    0   pc[8:2]    inst[31:0]
 +        vdd  0    0   mema[8:2]  memrd[31:0]
 +        0    clk  wr  mema[8:2]  memwd[31:0]
-+ $memory width=32 nlocations=128 file="lab7.bin"
++ $memory width=32 nlocations=128 file="sample.bin"
 
 *******************************************************************************
 * Xregisters is a register memory device to store your Beta registers r0 - r31.
@@ -113,9 +113,120 @@ Xjinste inst[15:0]  c[15:0]     join
 * Note that you will need to remove these signals from this section once you
 * connect them elsewhere!
 *******************************************************************************
-.connect clk5 clk
+.connect clk2 clk
 * .connect 0 wa[4:0]
 * .connect vdd mema[8:0]
+
+*******************************************************************************
+* 32-bit fastest CLA. reference: https://ieeexplore.ieee.org/document/1409882
+*******************************************************************************
+.subckt mpfa a b cin sum p not_g
+    Xp a b p xor2
+    Xnot_g a b not_g nand2
+    Xsum p cin sum xor2
+.ends
+
+.subckt 4bit_carry_one cin p not_g c1
+    Xnand2_one p cin interm0 nand2
+    Xout not_g interm0 c1 nand2
+.ends
+
+.subckt 4bit_carry_two cin p[1:0] not_g1 g[0] c2
+    Xnand_one p[1] g[0] interm0 nand2
+    Xnand_two p[1:0] cin interm1 nand3
+    Xout not_g1 interm[1:0] c2 nand3
+.ends
+
+.subckt 4bit_carry_three cin p[2:0] not_g2 g[1:0] c3
+    Xnand_one p[2] g[1] interm0 nand2
+    Xnand_two p[2:1] g[0] interm1 nand3
+    Xnand_three p[2:0] cin interm2 nand4
+    Xout interm[2:0] not_g2 c3 nand4
+.ends
+
+.subckt 4bit_group_p p[3:0] group_p
+    Xnand_one p[3:0] ngroup_p nand4
+    Xout ngroup_p group_p inverter
+.ends
+
+.subckt 4bit_group_g p[3:1] not_g3 g[2:0] group_g
+    Xout g[0] p[3:1] not_g3 g[2:1] group_g 4bit_carry_three
+.ends
+
+.subckt 16bit_carry_one cin p g c1
+    Xinv_one g not_g inverter
+    Xnand_one p cin interm0 nand2
+    Xout not_g interm0 c1 nand2 
+.ends
+
+.subckt 16bit_carry_two cin p[1:0] g[1:0] c2
+    Xinv_one g1 not_g1 inverter
+    Xnand_one p1 g0 interm0 nand2
+    Xnand_two p[1:0] cin interm1 nand3
+    Xout not_g1 interm[0:1] c2 nand3
+.ends
+
+.subckt 16bit_carry_three cin p[2:0] g[2:0] c3
+    Xinv_one g2 not_g2 inverter
+    Xnand_one p2 g1 interm0 nand2
+    Xnand_two p[2:1] g0 interm1 nand3
+    Xnand_three p[2:0] cin interm2 nand4
+    Xout not_g2 interm[0:2] c3 nand4
+.ends
+
+.subckt 16bit_group_g p[3:1] g[3:0] group_g
+    Xinv_one g3 not_g3 inverter
+    Xout p[3:1] not_g3 g[2:0] group_g 4bit_group_g
+.ends
+
+.subckt 4bit_mcla a[3:0] b[3:0] c0 sum[3:0] c[3:1] group_p group_g
+    Xmpfa0 a0 b0 c0 sum0 p[0] not_g[0] mpfa
+    Xinv_one not_g[0] g[0] inverter
+    Xcarry_one c0 p[0] not_g[0] c1 4bit_carry_one
+
+    Xmpfa1 a1 b1 c1 sum1 p[1] not_g[1] mpfa
+    Xinv_two not_g[1] g[1] inverter
+    Xcarry_two c0 p[1:0] not_g[1] g[0] c2 4bit_carry_two
+
+    Xmpfa2 a2 b2 c2 sum2 p[2] not_g[2] mpfa
+    Xinv_three not_g[2] g[2] inverter
+    Xcarry_three c0 p[2:0] not_g[2] g[1:0] c3 4bit_carry_three
+
+    Xmpfa3 a3 b3 c3 sum3 p[3] not_g[3] mpfa
+    Xgroup_p p[3:0] group_p 4bit_group_p
+    Xgroup_g p[3:1] not_g[3] g[2:0] group_g 4bit_group_g
+.ends
+
+.subckt 8bit_mcla a[7:0] b[7:0] c0 sum[7:0] c[8:1]
+    Xmcla a[3:0] b[3:0] c0 sum[3:0] c[3:1] p[0] g[0] 4bit_mcla
+    Xcarry_one c0 p0 g0 c4 16bit_carry_one
+
+    Xmcla1 a[7:4] b[7:4] c4 sum[7:4] c[7:5] p[1] g[1] 4bit_mcla
+    Xcarry_two c0 p[1:0] g[1:0] c8 16bit_carry_two
+.ends
+
+.subckt 16bit_mcla a[15:0] b[15:0] c0 sum[15:0] c[15:1] group_p group_g
+    Xmcla0 a[3:0] b[3:0] c0 sum[3:0] c[3:1] p[0] g[0] 4bit_mcla
+    Xcarry_one c0 p0 g0 c4 16bit_carry_one
+
+    Xmcla1 a[7:4] b[7:4] c4 sum[7:4] c[7:5] p[1] g[1] 4bit_mcla
+    Xcarry_two c0 p[1:0] g[1:0] c8 16bit_carry_two
+
+    Xmcla2 a[11:8] b[11:8] c8 sum[11:8] c[11:9] p[2] g[2] 4bit_mcla
+    Xcarry_three c0 p[2:0] g[2:0] c12 16bit_carry_three
+
+    Xmcla3 a[15:12] b[15:12] c12 sum[15:12] c[15:13] p[3] g[3] 4bit_mcla
+    Xgroup_p p[3:0] group_p 4bit_group_p
+    Xgroup_g p[3:1] g[3:0] group_g 16bit_group_g
+.ends
+
+.subckt 32bit_mcla a[31:0] b[31:0] c0 sum[31:0] c[32:31]
+    X16mcla0 a[15:0] b[15:0] c0 sum[15:0] c[15:1] p[0] g[0] 16bit_mcla
+    Xcarry_one c0 p0 g0 c16 16bit_carry_one
+
+    X16mcla1 a[31:16] b[31:16] c16 sum[31:16] c[31:17] p[1] g[1] 16bit_mcla
+    Xcarry_two c0 p[1:0] g[1:0] c32 16bit_carry_two
+.ends
 
 *******************************************************************************
 * 32-bit ALU
@@ -130,7 +241,7 @@ Xjinste inst[15:0]  c[15:0]     join
 .ends
 
 .subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
-    Xbit[0:31] a[0:31] b[0:31] cin0 cout[0:30] sum[0:31] cout[0:31] fa
+    X32bit_mcla a[31:0] b[31:0] cin0 sum[31:0] cout[31:30] 32bit_mcla
 .ends
 
 .subckt z_ckt a[0:31] out 
@@ -212,28 +323,33 @@ Xjinste inst[15:0]  c[15:0]     join
 * The program counter section.
 ******************************************************************************
 Xrd1_jt rd1_[31:0] jt[31:0] join
-Xbr_targ c[15:0] next_pc[31:0] br_target[31:0] br_target 
+* Xbr_targ c[15:0] next_pc[31:0] br_target[31:0] br_target
+* Xtarget 0#14 c[15:0] 0#2 0#22 next_pc[9:0] 0 br_target[31:0] unusedd[31:30] add32
+* Xtarget_new c[5:0] 0#2 next_pc[7:0] 0 br_target[7:0] unusedd[8:1] 8bit_mcla
+* .connect 0 br_target
 
-Xpcsel_mux[0:31] pcsel1#32 pcsel0#32 next_pc[31:0] 0#23 br_target[8:0] jt[31:0] 0#23 pc[8:0] pcsel_mux[31:0] mux4
-Xreset_mux reset#32 pcsel_mux[31:0] 0#32 pcsel_mux_rst[31:0] mux2
-Xpc[0:31] pcsel_mux_rst[31:0] clk#32 pc[31:0] dreg
+Xtarget_newer c[13:0] 0#2 0#8 next_pc[7:0] 0 br_target[15:0] unusedd[15:1] unused_p unused_g 16bit_mcla
 
-* the goofiest +4 ever
-Xfour_one 0#29 four[31:3] join
-Xfour_two vdd four[2] join
-Xfour_three 0#2 four[1:0] join
-Xnext_pc pc[31:0] four[31:0] 0 next_pc[31:0] unused[31:30] add32
+Xpcsel_mux[0:8] pcsel0#9 pcsel1#9 next_pc[8:0] br_target[8:0] jt[8:0] pc[8:0] pcsel_mux[8:0] mux4
+Xreset_mux reset#9 pcsel_mux[8:0] 0#9 pcsel_mux_rst[8:0] mux2
+Xpc[0:8] pcsel_mux_rst[8:0] clk#9 pc[8:0] dreg
+
+* the realest +4 ever
+Xnext_pc 0#1 pc[8:2] 0#8 vdd next_pc[9:2] unused[8:1] 8bit_mcla
+.connect 0 next_pc[1:0]
+.connect 0 next_pc[31:10]
 
 * Everything past this point is related to ALU and Register logic.
 Xbsel_mux[0:31] bsel#32 rd2_[31:0] 0#16 c[15:0] bsel_mux[31:0] mux2
 Xalu rd1_[31:0] bsel_mux[31:0] alufn[5:0] alu_out[31:0] alu32
 Xalu_ld alu_out[8:2] mema[8:2] join
+.connect 0 mema[1:0]
 
 Xst rd2_[31:0] memwd[31:0] join
 
 Xreg_wa rc[4:0] wa[4:0] join 
 
-Xwdsel_mux[0:31] wdsel1#32 wdsel0#32 next_pc[31:0] alu_out[31:0] memrd[31:0] 0#32 wd[31:0] mux4
+Xwdsel_mux[31:0] wdsel0#32 wdsel1#32 next_pc[31:0] alu_out[31:0] memrd[31:0] 0#32 wd[31:0] mux4
 
 Xra1_rd ra[4:0] ra1_[4:0] join
 Xra2sel_mux[0:4] ra2sel#5 rb[4:0] rc[4:0] ra2_[4:0] mux2
@@ -241,7 +357,7 @@ Xra2sel_mux[0:4] ra2sel#5 rb[4:0] rc[4:0] ra2_[4:0] mux2
 Xcpu_z rd1_[31:0] z z_ckt
 
 * Reset waveform
-Wreset reset nrz(0, 5, 70ns, 15ns, 0.001ns, 0.001ns)
+Wreset reset nrz(0, 5, 10ns, 0ns, 0.001ns, 0.001ns)
 + 1 0 
 
 *******************************************************************************
@@ -255,7 +371,10 @@ Wreset reset nrz(0, 5, 70ns, 15ns, 0.001ns, 0.001ns)
 .plot clk
 .plot reset
 .plot pc[8:0]
-.plot next_pc[8:0]
+* .plot z
+* .plot br_target[8:0]
+* .plot next_pc[8:0]
+.plot br_target[8:0]
 .plot inst[31:0]
 .plot betaop(opcode[5:0])
 .plot d(ra[4:0])
@@ -269,9 +388,10 @@ Wreset reset nrz(0, 5, 70ns, 15ns, 0.001ns, 0.001ns)
 * .plot werf_
 * .plot z
 .plot sd(rd2_[31:0])
-.plot b(wa[4:0])
-* .plot werf_
-.plot sd(wd[31:0])
-* .plot mema[8:0]
+* .plot b(wa[4:0])
+* .plot wr
+.plot d(wd[31:0])
+* .plot wdsel[1:0]
+.plot d(mema[8:0])
 .plot sd(memrd[31:0])
 .plot sd(memwd[31:0])
