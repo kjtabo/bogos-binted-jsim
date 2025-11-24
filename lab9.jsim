@@ -22,7 +22,7 @@
 *******************************************************************************
 Xmemory  vdd   0     0     pc[8:2]     inst[31:0]
 +        vdd   0     0     mema[8:2]   memrd[31:0]
-+        0     clk   wr_   mema[8:2]   memwd[31:0]
++        0     clk   wr    mema[8:2]   memwd[31:0]
 + $memory width=32 nlocations=128 file="sample.bin"
 * NOTE: CHANGE FILE BACK TO LAB7 BEFORE SUBMISSION !!!!!!!!!!!!!!!!!
 
@@ -50,7 +50,7 @@ Xnand_one wa[4:3] nand_one nand2
 Xnand_two wa[2:0] nand_two nand3
 Xnor_one nand_one nand_two res nor2
 Xinv_werf werf werf_inv inverter
-Xnor_two res werf_inv werf_temp nor2
+Xnor_two res werf_inv werf_ nor2
 
 *******************************************************************************
 * Control Logic (OPCODE Table)
@@ -93,8 +93,10 @@ Xjcontrolb control11      ra2sel     join
 Xjcontrolc control10      bsel       join
 Xjcontrold control[9:8]   wdsel[1:0] join
 Xjcontrole control[7:2]   alufn[5:0] join
-Xjcontrolf control1       wr         join
-Xjcontrolg control0       werf       join
+
+* WR and WERF Reset Logic
+Xwr_reset   reset  control1  0  wr   mux2
+Xwerf_reset reset  control0  0  werf mux2
 
 *******************************************************************************
 * Also connect our instruction signal lines to our opcode, rc, ra, rb, and c.
@@ -206,7 +208,7 @@ Xmux_ra2sel[4:0] ra2sel#5 rb[4:0] rc[4:0] ra2_[4:0] mux2
 
 Xmux_bsel[31:0] bsel#32 rd2_[31:0] c15#16 c[15:0] out_bsel[31:0] mux2
 
-Xmux_wdsel[31:0] wdsel0#32 wdsel1#32 0#23 incr[8:0] memrd[31:0] out_alu[31:0] 0#32 wd[31:0] mux4
+Xmux_wdsel[31:0] wdsel0#32 wdsel1#32 0#23 incr[8:0] out_alu[31:0] memrd[31:0] 0#32 wd[31:0] mux4
 
 *******************************************************************************
 * Program Counter (PC) and PC Reset
@@ -237,32 +239,18 @@ Xbt 0#23 incr[8:0] 0#23 c[6:0] 0#2 0 bt_trash[31:9] bt[8:0] bt_unused[31:30] add
 Xalu32 rd1_[31:0] out_bsel[31:0] alufn[5:0] out_alu[31:0] alu32
 
 *******************************************************************************
-* Reset Logic (WR and WERF)
+* Reset Waveform
 *******************************************************************************
-Xwr_reset reset wr 0 wr_ mux2
-
-Xwerf_reset reset werf_temp 0 werf_ mux2
-
-Wreset reset nrz(0, 5, 9.9ns, 0ns, 0.001ns, 0.001ns)
+Wreset reset nrz(0, 5, 10ns, 0ns, 0.001ns, 0.001ns)
 + 1 0
 
 *******************************************************************************
 * Connect things together
 *******************************************************************************
 Xra1 ra[4:0] ra1_[4:0] join
+Xwa rc[4:0] wa[4:0] join
+Xmema out_alu[8:2] 0#2 mema[8:0] join
 Xmemwd rd2_[31:0] memwd[31:0] join
-
-* wa and mema may have to be resolved at the same time for cpu to work properly
-* Xwa rc[4:0] wa[4:0] join
-* Xmema out_alu[8:0] mema[8:0] join
-
-*******************************************************************************
-* Temporarily connect other undefined signals. REMOVE BEFORE FLIGHT!!!
-*******************************************************************************
-* .connect vdd ra1_[4:0] ra2_[4:0] wa[4:0] wd[31:0] mema[8:0] memwd[31:0]
-.connect vdd wa[4:0] mema[8:0]
-* .connect vdd mema[8:0]
-* .connect vdd wa[4:0]
 
 *******************************************************************************
 * Plots
@@ -272,14 +260,8 @@ Xmemwd rd2_[31:0] memwd[31:0] join
 Xjdisplaya ra2_b_wdsel[3:0] ra2sel bsel wdsel[1:0] join
 Xjdisplayb wr_werfs[2:0]    wr werf werf_          join
 
-.tran 1280ns
+.tran 2560ns 
 .plot pc[8:0]
-.plot wa[4:0]
-.plot res
-.plot werf
-.plot werf_ 
-.plot wr
-.plot wr_
 .plot betaop(opcode[5:0])
 
 * Ra, Rb, Rc, constant
@@ -302,6 +284,7 @@ Xjdisplayb wr_werfs[2:0]    wr werf werf_          join
 .plot sd(wd[31:0])
 
 * memory address, read, write
-.plot d(mema[8:0])
+.plot mema[8:0]
 .plot sd(memrd[31:0])
 .plot sd(memwd[31:0])
+
