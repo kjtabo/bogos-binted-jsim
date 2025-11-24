@@ -24,7 +24,6 @@ Xmemory  vdd   0     0     pc[8:2]     inst[31:0]
 +        vdd   0     0     mema[8:2]   memrd[31:0]
 +        0     clk   wr    mema[8:2]   memwd[31:0]
 + $memory width=32 nlocations=128 file="lab7.bin"
-* NOTE: CHANGE FILE BACK TO LAB7 BEFORE SUBMISSION !!!!!!!!!!!!!!!!!
 
 *******************************************************************************
 * Register File
