@@ -27,110 +27,6 @@
   .ends
 
 *******************************************************************************
-* 32-bit fastest CLA. reference: https://ieeexplore.ieee.org/document/1409882
-*******************************************************************************
-
-  .subckt mpfa a b cin sum p not_g
-      Xp a b p xor2_fast
-      Xnot_g a b not_g nand2
-      Xsum p cin sum xor2_fast
-  .ends
-
-  .subckt 4bit_carry_one cin p not_g c1
-      Xnand2_one p cin interm0 nand2
-      Xout not_g interm0 c1 nand2
-  .ends
-
-  .subckt 4bit_carry_two cin p[1:0] not_g1 g[0] c2
-      Xnand_one p[1] g[0] interm0 nand2
-      Xnand_two p[1:0] cin interm1 nand3
-      Xout not_g1 interm[1:0] c2 nand3
-  .ends
-
-  .subckt 4bit_carry_three cin p[2:0] not_g2 g[1:0] c3
-      Xnand_one p[2] g[1] interm0 nand2
-      Xnand_two p[2:1] g[0] interm1 nand3
-      Xnand_three p[2:0] cin interm2 nand4
-      Xout interm[2:0] not_g2 c3 nand4
-  .ends
-
-  .subckt 4bit_group_p p[3:0] group_p
-      Xnand_one p[3:0] ngroup_p nand4
-      Xout ngroup_p group_p inverter
-  .ends
-
-  .subckt 4bit_group_g p[3:1] not_g3 g[2:0] group_g
-      Xout g[0] p[3:1] not_g3 g[2:1] group_g 4bit_carry_three
-  .ends
-
-  .subckt 16bit_carry_one cin p g c1
-      Xinv_one g not_g inverter
-      Xnand_one p cin interm0 nand2
-      Xout not_g interm0 c1 nand2 
-  .ends
-
-  .subckt 16bit_carry_two cin p[1:0] g[1:0] c2
-      Xinv_one g1 not_g1 inverter
-      Xnand_one p1 g0 interm0 nand2
-      Xnand_two p[1:0] cin interm1 nand3
-      Xout not_g1 interm[0:1] c2 nand3
-  .ends
-
-  .subckt 16bit_carry_three cin p[2:0] g[2:0] c3
-      Xinv_one g2 not_g2 inverter
-      Xnand_one p2 g1 interm0 nand2
-      Xnand_two p[2:1] g0 interm1 nand3
-      Xnand_three p[2:0] cin interm2 nand4
-      Xout not_g2 interm[0:2] c3 nand4
-  .ends
-
-  .subckt 16bit_group_g p[3:1] g[3:0] group_g
-      Xinv_one g3 not_g3 inverter
-      Xout p[3:1] not_g3 g[2:0] group_g 4bit_group_g
-  .ends
-
-  .subckt 4bit_mcla a[3:0] b[3:0] c0 sum[3:0] c[3:1] group_p group_g
-      Xmpfa0 a0 b0 c0 sum0 p[0] not_g[0] mpfa
-      Xinv_one not_g[0] g[0] inverter
-      Xcarry_one c0 p[0] not_g[0] c1 4bit_carry_one
-
-      Xmpfa1 a1 b1 c1 sum1 p[1] not_g[1] mpfa
-      Xinv_two not_g[1] g[1] inverter
-      Xcarry_two c0 p[1:0] not_g[1] g[0] c2 4bit_carry_two
-
-      Xmpfa2 a2 b2 c2 sum2 p[2] not_g[2] mpfa
-      Xinv_three not_g[2] g[2] inverter
-      Xcarry_three c0 p[2:0] not_g[2] g[1:0] c3 4bit_carry_three
-
-      Xmpfa3 a3 b3 c3 sum3 p[3] not_g[3] mpfa
-      Xgroup_p p[3:0] group_p 4bit_group_p
-      Xgroup_g p[3:1] not_g[3] g[2:0] group_g 4bit_group_g
-  .ends
-
-  .subckt 16bit_mcla a[15:0] b[15:0] c0 sum[15:0] c[15:1] group_p group_g
-      Xmcla0 a[3:0] b[3:0] c0 sum[3:0] c[3:1] p[0] g[0] 4bit_mcla
-      Xcarry_one c0 p0 g0 c4 16bit_carry_one
-
-      Xmcla1 a[7:4] b[7:4] c4 sum[7:4] c[7:5] p[1] g[1] 4bit_mcla
-      Xcarry_two c0 p[1:0] g[1:0] c8 16bit_carry_two
-
-      Xmcla2 a[11:8] b[11:8] c8 sum[11:8] c[11:9] p[2] g[2] 4bit_mcla
-      Xcarry_three c0 p[2:0] g[2:0] c12 16bit_carry_three
-
-      Xmcla3 a[15:12] b[15:12] c12 sum[15:12] c[15:13] p[3] g[3] 4bit_mcla
-      Xgroup_p p[3:0] group_p 4bit_group_p
-      Xgroup_g p[3:1] g[3:0] group_g 16bit_group_g
-  .ends
-
-  .subckt 32bit_mcla a[31:0] b[31:0] c0 sum[31:0] c[32:31]
-      X16mcla0 a[15:0] b[15:0] c0 sum[15:0] c[15:1] p[0] g[0] 16bit_mcla
-      Xcarry_one c0 p0 g0 c16 16bit_carry_one
-
-      X16mcla1 a[31:16] b[31:16] c16 sum[31:16] c[31:17] p[1] g[1] 16bit_mcla
-      Xcarry_two c0 p[1:0] g[1:0] c32 16bit_carry_two
-  .ends
-
-*******************************************************************************
 * OPTIMIZED ZERO-CHECKER FOR CIRCUIT SIZE
 *******************************************************************************
 
@@ -212,7 +108,7 @@
       Xmux[31:0] alufn4#32 alufn5#32 fas[31:0] fbool[31:0] fshift[31:0] fcmp[31:0] f[31:0] mux4
   .ends
 
-  Xalu32 a[31:0] b[31:0] alufn[5:0] f[31:0] alu32
+  Xalu32 rd1_[31:0] b[31:0] alufn[5:0] f[31:0] alu32
 
 *******************************************************************************
 * Instruction/Data Memory File
@@ -221,7 +117,7 @@
   Xmemory  vdd  0    0   pc[8:2]    inst[31:0]
   +        vdd  0    0   mema[8:2]  memrd[31:0]
   +        0    clk  wr  mema[8:2]  memwd[31:0]
-  + $memory width=32 nlocations=128 file="lab7.bin"
+  + $memory width=32 nlocations=128 file="sample.bin"
 
 *******************************************************************************
 * Register File
@@ -256,7 +152,7 @@
   +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
   +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
   +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
-  +   0b00011000000001 0b00110000000010 0b11000000000000 0b10000000000001 0b11000000000000 0b01000000000001 0b00000000000001 0b11000000000000
+  +   0b00011000000001 0b00110000000010 0b11000000000000 0b10000000000001 0b11000000000000 0b00000000000001 0b01000000000001 0b11000000000000
   +   0b00000100000001 0b00000100000101 0b11000000000000 0b11000000000000 0b00000111001101 0b00000111010101 0b00000111011101 0b11000000000000
   +   0b00000101100001 0b00000101111001 0b00000101011001 0b11000000000000 0b00000110000001 0b00000110000101 0b00000110001101 0b11000000000000
   +   0b00010100000001 0b00010100000101 0b11000000000000 0b11000000000000 0b00010111001101 0b00010111010101 0b00010111011101 0b11000000000000
@@ -265,7 +161,7 @@
   +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
   +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
   +   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
-  +   0b00011000000001 0b00110000000010 0b11000000000000 0b10000000000001 0b11000000000000 0b00000000000001 0b01000000000001 0b11000000000000
+  +   0b00011000000001 0b00110000000010 0b11000000000000 0b10000000000001 0b11000000000000 0b01000000000001 0b00000000000001 0b11000000000000
   +   0b00000100000001 0b00000100000101 0b11000000000000 0b11000000000000 0b00000111001101 0b00000111010101 0b00000111011101 0b11000000000000
   +   0b00000101100001 0b00000101111001 0b00000101011001 0b11000000000000 0b00000110000001 0b00000110000101 0b00000110001101 0b11000000000000
   +   0b00010100000001 0b00010100000101 0b11000000000000 0b11000000000000 0b00010111001101 0b00010111010101 0b00010111011101 0b11000000000000
@@ -281,8 +177,10 @@
   Xjcontrolc control10      bsel       join
   Xjcontrold control[9:8]   wdsel[1:0] join
   Xjcontrole control[7:2]   alufn[5:0] join
-  Xjcontrolf control1       wr         join
-  Xjcontrolg control0       werf       join
+  * Xjcontrolf control1       wr         join
+  Xwrmux reset control1 0 wr mux2
+  * Xjcontrolg control0       werf       join
+  Xwerfmux reset control0 0 werf mux2
 
   Xjinsta inst[31:26] opcode[5:0] join
   Xjinstb inst[25:21] rc[4:0]     join
@@ -291,12 +189,45 @@
   Xjinste inst[15:0]  c[15:0]     join
 
 *******************************************************************************
-* Program Counter
-* To be done
+* NOR gate for Z
 *******************************************************************************
 
-  Xjpc clk[8:2] pc[8:2] join
-  .connect 0 pc[1:0]
+  Xnorz rd1_[31:0] z z_ckt
+
+*******************************************************************************
+* inSELS
+*******************************************************************************
+
+  * RA2SEL
+  Xra2sel[4:0] ra2sel#5 rb[4:0] rc[4:0] ra2_[4:0] mux2
+
+  * BSEL
+  Xbsel[31:0] bsel#32 c[15]#17 c[14:0] rd2_[31:0] b[31:0] mux2
+
+  * WDSEL
+  Xwdsel[31:0] wdsel[0]#32 wdsel[1]#32 pc[31:0] f[31:0] memrd[31:0] 0#32 wd[31:0] mux4
+
+  * PCSEL
+  Xpcsel[8:0] pcsel[0]#9 pcsel[1]#9 pc_next[8:0] bt[8:0] rd1_[8:0] pc[8:0] pcselout[8:0] mux4
+
+*******************************************************************************
+* Program Counter
+*******************************************************************************
+
+  Wreset reset nrz(0, 5, 50ns, 0ns, 0.001ns, 0.001ns)
+  + 1 0 0 0 0 0 
+
+  Xpcmux[0:8] reset#9 pcselout[8:0] 0#9 pcmux[8:0] mux2
+  Xpc[0:8] pcmux[8:0] clk#9 pc[8:0] dreg
+  
+  Xlmao 0#23 pc[31:9] join
+  Xpcnext pc[31:0] 0#29 vdd 0#2 0 pc_next[31:0] trash[1:0] add32
+
+*******************************************************************************
+* Branch Target
+*******************************************************************************
+
+  Xbt pc_next[31:0] 0#14 c[15:0] 0#2 0 bt[31:0] trash[3:2] add32
 
 *******************************************************************************
 * Temporarily connect other undefined signals.
@@ -304,8 +235,13 @@
 * connect them elsewhere!
 *******************************************************************************
 
-  .connect vdd clk ra1_[4:0] ra2_[4:0] wa[4:0] wd[31:0] mema[8:0] memwd[31:0]
-  .connect 0 z
+  Xra1 ra[4:0] ra1_[4:0] join
+  Xwa rc[4:0] wa[4:0] join
+  Xwd rd2_[31:0] memwd[31:0] join
+  Xmema f[8:0] mema[8:0] join
+  .connect clk2 clk
+  * .connect vdd ra1_[4:0] wa[4:0] mema[8:0] memwd[31:0]
+  * .connect 0 z
 
 *******************************************************************************
 * Signals plotted together
@@ -315,28 +251,29 @@
   Xjdisplayb wr_werfs[2:0]    wr werf werf_          join
 
 *******************************************************************************
-* Test Cases
+* Instantiation
 *******************************************************************************
 
-  Wa a[31:0] nrz(0v,5.0v,20ns,0ns,.1ns,.1ns)
-  + -1 0x55555555 0xAAAAAAAA 1 -2 -1 -1 0x55555555 0 -1 0x55555555 0
-  + -1 0x55555555 0 -1 0x55555555 0 -1 0x55555555 0 1 -1 -1 0x55555555 0xAAAAAAAA -1
-  + 0x55555555 0xAAAAAAAA -1 -1 15 0 -1 15 0 -1 15 0
 
-  Wb b[31:0] nrz(0v,5.0v,20ns,0ns,.1ns,.1ns)
-  + 1 0x55555555 0xAAAAAAAA 1 0 -1 -1 0xAAAAAAAA 0 -1 0xAAAAAAAA 0
-  + -1 0xAAAAAAAA 0 -1 0xAAAAAAAA 0 -1 0xAAAAAAAA 0 31 15 0 24 24 31
-  + 24 24 31 1 15 -256 1 15 -256 1 15 -256
-
-  Wf alufn[5:0] nrz(0v,5.0v,60ns,0ns,.1ns,.1ns)
-  + 0 1 24 30 22 26 21 32 33 35 51 53 55
 
 *******************************************************************************
 * Plots
 *******************************************************************************
 
-.tran 780ns 
-.plot a[31:0]
-.plot b[31:0]
+.tran 1280ns
+.plot pc[8:0]
+.plot betaop(opcode[5:0])
+.plot d(ra[4:0])
+.plot d(rb[4:0])
+.plot d(rc[4:0])
+.plot sd(c[15:0])
+.plot b(pcsel[1:0])
+.plot b(ra2_b_wdsel[3:0])
 .plot b(alufn[5:0])
-.plot f[31:0]
+.plot b(wr_werfs[2:0])
+.plot sd(rd1_[31:0])
+.plot sd(rd2_[31:0])
+.plot sd(wd[31:0])
+.plot d(mema[8:0])
+.plot sd(memrd[31:0])
+.plot sd(memwd[31:0])
