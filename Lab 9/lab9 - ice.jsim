@@ -96,8 +96,8 @@ Xjcontrolb control11      ra2sel     join
 Xjcontrolc control10      bsel       join
 Xjcontrold control[9:8]   wdsel[1:0] join
 Xjcontrole control[7:2]   alufn[5:0] join
-Xjcontrolf control1       wr         join
-Xjcontrolg control0       werf       join
+Xjcontrolf reset control1 0     wr   mux2
+Xjcontrolg reset control0 0 werf     mux2
 
 *******************************************************************************
 * Also connect our instruction signal lines to our opcode, rc, ra, rb, and c.
@@ -113,7 +113,9 @@ Xjinste inst[15:0]  c[15:0]     join
 * Note that you will need to remove these signals from this section once you
 * connect them elsewhere!
 *******************************************************************************
-.connect clk6 clk
+.connect clk5 clk
+* .connect 0 wa[4:0]
+* .connect vdd mema[8:0]
 
 *******************************************************************************
 * 32-bit ALU
@@ -204,10 +206,11 @@ Xjinste inst[15:0]  c[15:0]     join
     Xtarget pc[31:0] 0#14 c_shifted[17:0] 0 br_target[31:0] unused[31:30] add32
 .ends
 
-*******************************************************************************
+******************************************************************************
 * The beta processor. 
 ******************************************************************************
 * The program counter section.
+******************************************************************************
 Xrd1_jt rd1_[31:0] jt[31:0] join
 Xbr_targ c[15:0] next_pc[31:0] br_target[31:0] br_target 
 
@@ -233,13 +236,13 @@ Xreg_wa rc[4:0] wa[4:0] join
 Xwdsel_mux[0:31] wdsel1#32 wdsel0#32 next_pc[31:0] alu_out[31:0] memrd[31:0] 0#32 wd[31:0] mux4
 
 Xra1_rd ra[4:0] ra1_[4:0] join
-Xra2sel_mux[0:4] ra2sel#5 rb[4:0] rc[4:0] ra2_[4:0]  mux2
+Xra2sel_mux[0:4] ra2sel#5 rb[4:0] rc[4:0] ra2_[4:0] mux2
 
 Xcpu_z rd1_[31:0] z z_ckt
 
 * Reset waveform
-Wreset reset nrz(0, 5, 80ns, 15ns, 0.001ns, 0.001ns)
-+ 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+Wreset reset nrz(0, 5, 70ns, 15ns, 0.001ns, 0.001ns)
++ 1 0 
 
 *******************************************************************************
 * This section plots the following signals in order:
@@ -259,11 +262,16 @@ Wreset reset nrz(0, 5, 80ns, 15ns, 0.001ns, 0.001ns)
 .plot d(rb[4:0])
 .plot d(rc[4:0])
 .plot sd(c[15:0])
-.plot b(pcsel[1:0])
-.plot b(alufn[5:0])
+* .plot b(pcsel[1:0])
+* .plot b(alufn[5:0])
+* .plot b(ra1_[4:0])
 .plot sd(rd1_[31:0])
+* .plot werf_
+* .plot z
 .plot sd(rd2_[31:0])
+.plot b(wa[4:0])
+* .plot werf_
 .plot sd(wd[31:0])
-* .plot d(mema[8:0])
-* .plot sd(memrd[31:0])
-* .plot sd(memwd[31:0])
+* .plot mema[8:0]
+.plot sd(memrd[31:0])
+.plot sd(memwd[31:0])
