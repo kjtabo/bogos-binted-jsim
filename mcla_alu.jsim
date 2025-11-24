@@ -10,6 +10,110 @@
 .include "stdcell.jsim"
 
 *******************************************************************************
+* 32-bit Carry Lookahead Adder. https://ieeexplore.ieee.org/document/1409882
+*******************************************************************************
+
+.subckt mpfa a b cin sum p not_g
+    Xp a b p xor2
+    Xnot_g a b not_g nand2
+    Xsum p cin sum xor2
+.ends
+
+.subckt 4bit_carry_one cin p not_g c1
+    Xnand2_one p cin interm0 nand2
+    Xout not_g interm0 c1 nand2
+.ends
+
+.subckt 4bit_carry_two cin p[1:0] not_g1 g[0] c2
+    Xnand_one p[1] g[0] interm0 nand2
+    Xnand_two p[1:0] cin interm1 nand3
+    Xout not_g1 interm[1:0] c2 nand3
+.ends
+
+.subckt 4bit_carry_three cin p[2:0] not_g2 g[1:0] c3
+    Xnand_one p[2] g[1] interm0 nand2
+    Xnand_two p[2:1] g[0] interm1 nand3
+    Xnand_three p[2:0] cin interm2 nand4
+    Xout interm[2:0] not_g2 c3 nand4
+.ends
+
+.subckt 4bit_group_p p[3:0] group_p
+    Xnand_one p[3:0] ngroup_p nand4
+    Xout ngroup_p group_p inverter
+.ends
+
+.subckt 4bit_group_g p[3:1] not_g3 g[2:0] group_g
+    Xout g[0] p[3:1] not_g3 g[2:1] group_g 4bit_carry_three
+.ends
+
+.subckt 16bit_carry_one cin p g c1
+    Xinv_one g not_g inverter
+    Xnand_one p cin interm0 nand2
+    Xout not_g interm0 c1 nand2 
+.ends
+
+.subckt 16bit_carry_two cin p[1:0] g[1:0] c2
+    Xinv_one g1 not_g1 inverter
+    Xnand_one p1 g0 interm0 nand2
+    Xnand_two p[1:0] cin interm1 nand3
+    Xout not_g1 interm[0:1] c2 nand3
+.ends
+
+.subckt 16bit_carry_three cin p[2:0] g[2:0] c3
+    Xinv_one g2 not_g2 inverter
+    Xnand_one p2 g1 interm0 nand2
+    Xnand_two p[2:1] g0 interm1 nand3
+    Xnand_three p[2:0] cin interm2 nand4
+    Xout not_g2 interm[0:2] c3 nand4
+.ends
+
+.subckt 16bit_group_g p[3:1] g[3:0] group_g
+    Xinv_one g3 not_g3 inverter
+    Xout p[3:1] not_g3 g[2:0] group_g 4bit_group_g
+.ends
+
+.subckt 4bit_mcla a[3:0] b[3:0] c0 sum[3:0] c[3:1] group_p group_g
+    Xmpfa0 a0 b0 c0 sum0 p[0] not_g[0] mpfa
+    Xinv_one not_g[0] g[0] inverter
+    Xcarry_one c0 p[0] not_g[0] c1 4bit_carry_one
+
+    Xmpfa1 a1 b1 c1 sum1 p[1] not_g[1] mpfa
+    Xinv_two not_g[1] g[1] inverter
+    Xcarry_two c0 p[1:0] not_g[1] g[0] c2 4bit_carry_two
+
+    Xmpfa2 a2 b2 c2 sum2 p[2] not_g[2] mpfa
+    Xinv_three not_g[2] g[2] inverter
+    Xcarry_three c0 p[2:0] not_g[2] g[1:0] c3 4bit_carry_three
+
+    Xmpfa3 a3 b3 c3 sum3 p[3] not_g[3] mpfa
+    Xgroup_p p[3:0] group_p 4bit_group_p
+    Xgroup_g p[3:1] not_g[3] g[2:0] group_g 4bit_group_g
+.ends
+
+.subckt 16bit_mcla a[15:0] b[15:0] c0 sum[15:0] c[15:1] group_p group_g
+    Xmcla0 a[3:0] b[3:0] c0 sum[3:0] c[3:1] p[0] g[0] 4bit_mcla
+    Xcarry_one c0 p0 g0 c4 16bit_carry_one
+
+    Xmcla1 a[7:4] b[7:4] c4 sum[7:4] c[7:5] p[1] g[1] 4bit_mcla
+    Xcarry_two c0 p[1:0] g[1:0] c8 16bit_carry_two
+
+    Xmcla2 a[11:8] b[11:8] c8 sum[11:8] c[11:9] p[2] g[2] 4bit_mcla
+    Xcarry_three c0 p[2:0] g[2:0] c12 16bit_carry_three
+
+    Xmcla3 a[15:12] b[15:12] c12 sum[15:12] c[15:13] p[3] g[3] 4bit_mcla
+    Xgroup_p p[3:0] group_p 4bit_group_p
+    Xgroup_g p[3:1] g[3:0] group_g 16bit_group_g
+.ends
+
+.subckt 32bit_mcla a[31:0] b[31:0] c0 sum[31:0] c[32:31]
+    X16mcla0 a[15:0] b[15:0] c0 sum[15:0] c[15:1] p[0] g[0] 16bit_mcla
+    Xcarry_one c0 p0 g0 c16 16bit_carry_one
+
+    X16mcla1 a[31:16] b[31:16] c16 sum[31:16] c[31:17] p[1] g[1] 16bit_mcla
+    Xcarry_two c0 p[1:0] g[1:0] c32 16bit_carry_two
+.ends
+
+*******************************************************************************
 * 32-bit Adder/Subtractor
 *******************************************************************************
 
@@ -26,16 +130,6 @@
     Xbit[0:31] a[0:31] b[0:31] cin0 cout[0:30] sum[0:31] cout[0:31] fa
 .ends
 
-* UNUSED
-.subckt old_z_ckt a[0:31] out 
-  Xnor2_one[0:15] a[0:31] nor2_one_out[0:15] nor2
-  Xnand2_one[0:7] nor2_one_out[0:15] nand2_one_out[0:7] nand2
-  Xnor2_two[0:3] nand2_one_out[0:7] nor2_two_out[0:3] nor2
-  Xnand2_two[0:1] nor2_two_out[0:3] nand2_two_out[0:1] nand2
-  xnor2_three nand2_two_out[0:1] out nor2
-.ends
-
-* OPTIMIZED ZERO-CHECKER FOR CIRCUIT SIZE
 .subckt z_ckt a[0:31] out 
   Xnor2_one[0:7] a[0:31] nor4_one_out[0:7] nor4
   Xnand2_one[0:1] nor4_one_out[0:7] nand4_one_out[0:1] nand4
@@ -43,14 +137,19 @@
 .ends
 
 .subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
-  * Former way of deciding to 2's complement `b` or not (64 gates).
-  *
-  * Xinv[31:0] b[31:0] binv[31:0] inverter
-  * Xmux[31:0] op0#32 b[31:0] binv[31:0] bmux[31:0] mux2
+  Xinv[31:0] b[31:0] op0#32 bop[31:0] xor2
+*   Xadder a[31:0] bop[31:0] op0 fas[31:0] cout[31:30] 32bit_mcla
+  Xadder a[31:0] bop[31:0] op0 fas[31:0] cout[31:30] add32
 
-  * Changed to only using XOR Gates (32 gates) 690
-  Xinv[31:0] b[31:0] op0#32 bmux[31:0] xor2
-  Xadd32 a[31:0] bmux[31:0] op0 fas[31:0] cout[31:30] add32
+  .connect fas31 n
+  Xv cout[31:30] v xor2
+  Xz fas[31:0] z z_ckt
+.ends
+
+.subckt as32mcla a[31:0] b[31:0] op0 fas[31:0] n v z
+  Xinv[31:0] b[31:0] op0#32 bop[31:0] xor2
+  Xadder a[31:0] bop[31:0] op0 fas[31:0] cout[31:30] 32bit_mcla
+*   Xadder a[31:0] bop[31:0] op0 fas[31:0] cout[31:30] add32
 
   .connect fas31 n
   Xv cout[31:30] v xor2
@@ -58,7 +157,7 @@
 .ends
 
 *******************************************************************************
-* 32-bit Comparator 691
+* 32-bit Comparator
 *******************************************************************************
 
 .subckt cmp32 n v z op[2:1] fcmp[31:0]
@@ -111,8 +210,17 @@
 * Arithmetic Logic Unit
 *******************************************************************************
 
-.subckt alu32 a[31:0] b[31:0] alufn[5:0] f[31:0] g
+.subckt alu32 a[31:0] b[31:0] alufn[5:0] f[31:0]
     Xas32 a[31:0] b[31:0] alufn0 fas[31:0] n v z as32
+    Xbool32 a[31:0] b[31:0] alufn[3:0] fbool[31:0] bool32 
+    Xshift32 a[31:0] b[4:0] alufn[1:0] fshift[31:0] shift32
+    Xcmp32 n v z alufn[2:1] fcmp[31:0] cmp32
+
+    Xmux[31:0] alufn4#32 alufn5#32 fas[31:0] fbool[31:0] fshift[31:0] fcmp[31:0] f[31:0] mux4
+.ends
+
+.subckt alu32mcla a[31:0] b[31:0] alufn[5:0] f[31:0]
+    Xas32 a[31:0] b[31:0] alufn0 fas[31:0] n v z as32mcla
     Xbool32 a[31:0] b[31:0] alufn[3:0] fbool[31:0] bool32 
     Xshift32 a[31:0] b[4:0] alufn[1:0] fshift[31:0] shift32
     Xcmp32 n v z alufn[2:1] fcmp[31:0] cmp32
@@ -124,7 +232,8 @@
 * Instantiation
 *******************************************************************************
 
-Xalu32 a[31:0] b[31:0] alufn[5:0] f[31:0] g alu32
+Xalu32 a[31:0] b[31:0] alufn[5:0] f[31:0] alu32
+Xalu32mcla a[31:0] b[31:0] alufn[5:0] fmcla[31:0] alu32mcla
 
 *******************************************************************************
 * Test Cases
@@ -152,45 +261,5 @@ Wf alufn[5:0] nrz(0v,5.0v,60ns,0ns,.1ns,.1ns)
 .plot b[31:0]
 .plot b(alufn[5:0])
 .plot f[31:0]
+.plot fmcla[31:0]
 
-*******************************************************************************
-* Explain how you optimized your alu32 for circuit size.
-*******************************************************************************
-*
-* The zero-checker was optimized more, circuit-size-wise. Instead of limiting
-* to using only 2-input NORs and 2-input NANDs, 4-input NORs and NANDs were 
-* also used to maximize the number of bits that can be processed with one gate.
-* Granted that the zero-checker was slightly slower due to a higher propagation
-* delay (0.03ns to 0.07ns and 0.05ns to 0.12ns for NANDs and NORs,
-* respectively), it lessened the number of gates used from 31 to 11.
-* 
-* The logic of the full adder/subtracter was changed. In deciding whether to
-* operate on the two’s complement of input b, the NOT and MUXs were replaced
-* with a XOR gate instead. An inefficiency was found in that the as32 would
-* always produce b and ^b for every bit even though only one of each would be
-* used—which is chosen by the MUX. Using a truth table, it can be seen that
-* using the NOT and the MUX have the same output as an XOR gate. This was
-* inspired and based off of the diagram of a full subtractor circuit that we
-* saw back in our PHYS 160: Electronics class. Thus, 32 gates were removed from
-* the total count in the ALU.
-* 
-* The bitwise boolean circuit was pretty straightforward as indicated in the
-* specifications. It is implemented to use a 4-input MUX for every pair of
-* bits. Since the whole premise is using a “programmable” 4-input MUX to
-* replicate logic gates accepting 2 inputs, there is no further way to lessen
-* the number of gates in this subcircuit.
-* 
-* Given how the ALU stores operation codes in binary, it is most intuitive to
-* split the bitshifter to the decimal equivalent of each bit of the op. This
-* results in having a dedicated 16-bit shifter, 8-bit shifter, and so on. This
-* implementation of a 32-bit shifter was optimized by using the same shifting
-* logic for both left and right shifts, accounting also for arithmetic
-* shifting. Through this method, the circuit was made smaller by about 96 gates
-* compared to having dedicated left and right shifts.
-*
-* Since the ALU just puts all of the previously constructed subcircuits
-* together, any optimization in the component parts also becomes an
-* optimization for the ALU, and that’s how we optimized the ALU for circuit
-* size.
-*
-*******************************************************************************
