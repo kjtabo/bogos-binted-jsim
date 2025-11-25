@@ -283,7 +283,7 @@ Xjdisplayb wr_werfs[2:0]    wr werf werf_          join
 .plot sd(wd[31:0])
 
 * memory address, read, write
-.plot mema[8:0]
+.plot d(mema[8:0])
 .plot sd(memrd[31:0])
 .plot sd(memwd[31:0])
 
