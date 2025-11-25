@@ -1,0 +1,376 @@
+*******************************************************************************
+* LAB #9
+* - Dorde, Andre Benedict
+* - Pascual, Eizekiel Pierre
+* - Tabo, Ken Jonree
+*******************************************************************************
+
+.include "8clocks.jsim"
+.include "nominal.jsim"
+.include "stdcell.jsim"
+
+.connect clk2 clk
+
+*******************************************************************************
+* Instruction and Data Memory File
+*
+* Line 1 -> defines read port for next instruction (load PC into INST)
+* Line 2 -> defines read port for LD  (load MEMA into MEMRD) 
+* Line 3 -> defines write port for ST (store MEMWD in MEMA; controlled by WR)
+*
+* COLS:  oe  | clk | WEn | address   | data        NOTE: oe = output enable
+*******************************************************************************
+Xmemory  vdd   0     0     pc[8:2]     inst[31:0]
++        vdd   0     0     mema[8:2]   memrd[31:0]
++        0     clk   wr    mema[8:2]   memwd[31:0]
++ $memory width=32 nlocations=128 file="lab7.bin"
+
+*******************************************************************************
+* Register File
+*
+* Line 1 -> defines read port for RD1_
+* Line 2 -> defines read port for RD2_
+* Line 3 -> defines write port for WD; controlled by WERF
+*
+* COLUMNS:  oe  | clk | WEn   | address   | data       NOTE: oe = output enable
+*******************************************************************************
+Xregisters  vdd   0     0       ra1_[4:0]   rd1_[31:0]
++           vdd   0     0       ra2_[4:0]   rd2_[31:0]
++           0     clk   werf_   wa[4:0]     wd[31:0]
++ $memory width=32 nlocations=32 contents=(
++   0 0 0 0 0 0 0 0
++   0 0 0 0 0 0 0 0
++   0 0 0 0 0 0 0 0
++   0 0 0 0 0 0 0 0
++ )
+
+* Compute for WERF_ 
+Xnand_one wa[4:3] nand_one nand2
+Xnand_two wa[2:0] nand_two nand3
+Xnor_one nand_one nand_two res nor2
+Xinv_werf werf werf_inv inverter
+Xnor_two res werf_inv werf_ nor2
+
+*******************************************************************************
+* Control Logic (OPCODE Table)
+*******************************************************************************
+Xcontrol  vdd  0  0  z opcode[5:0]  control[13:0]
++ $memory width=14 nlocations=128 contents=(
++   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
++   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
++   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
++   0b00011000000001 0b00110000000010 0b11000000000000 0b10000000000001 0b11000000000000 0b00000000000001 0b01000000000001 0b11000000000000
++   0b00000100000001 0b00000100000101 0b11000000000000 0b11000000000000 0b00000111001101 0b00000111010101 0b00000111011101 0b11000000000000
++   0b00000101100001 0b00000101111001 0b00000101011001 0b11000000000000 0b00000110000001 0b00000110000101 0b00000110001101 0b11000000000000
++   0b00010100000001 0b00010100000101 0b11000000000000 0b11000000000000 0b00010111001101 0b00010111010101 0b00010111011101 0b11000000000000
++   0b00010101100001 0b00010101111001 0b00010101011001 0b11000000000000 0b00010110000001 0b00010110000101 0b00010110001101 0b11000000000000
++
++   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
++   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
++   0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000 0b11000000000000
++   0b00011000000001 0b00110000000010 0b11000000000000 0b10000000000001 0b11000000000000 0b01000000000001 0b00000000000001 0b11000000000000
++   0b00000100000001 0b00000100000101 0b11000000000000 0b11000000000000 0b00000111001101 0b00000111010101 0b00000111011101 0b11000000000000
++   0b00000101100001 0b00000101111001 0b00000101011001 0b11000000000000 0b00000110000001 0b00000110000101 0b00000110001101 0b11000000000000
++   0b00010100000001 0b00010100000101 0b11000000000000 0b11000000000000 0b00010111001101 0b00010111010101 0b00010111011101 0b11000000000000
++   0b00010101100001 0b00010101111001 0b00010101011001 0b11000000000000 0b00010110000001 0b00010110000101 0b00010110001101 0b11000000000000
++ )
+
+*******************************************************************************
+* Helper subckt to facilitate multi-bit joins.
+*******************************************************************************
+.subckt join S T
+  .connect S T
+.ends
+
+*******************************************************************************
+* The following .connect statements define what control signal goes to which
+* of the 14 bits of the control ROM's output. The bits are ordered as they
+* appear in the control logic diagram of your 50.01 slides.
+*******************************************************************************
+Xjcontrola control[13:12] pcsel[1:0] join
+Xjcontrolb control11      ra2sel     join
+Xjcontrolc control10      bsel       join
+Xjcontrold control[9:8]   wdsel[1:0] join
+Xjcontrole control[7:2]   alufn[5:0] join
+
+* WR and WERF Reset Logic
+Xwr_reset   reset  control1  0  wr   mux2
+Xwerf_reset reset  control0  0  werf mux2
+
+*******************************************************************************
+* Also connect our instruction signal lines to our opcode, rc, ra, rb, and c.
+*******************************************************************************
+Xjinsta inst[31:26] opcode[5:0] join
+Xjinstb inst[25:21] rc[4:0]     join
+Xjinstc inst[20:16] ra[4:0]     join
+Xjinstd inst[15:11] rb[4:0]     join
+Xjinste inst[15:0]  c[15:0]     join
+
+*******************************************************************************
+* Helper subckt to check if a given sequence of bits equals zero.
+*******************************************************************************
+.subckt z_ckt a[0:31] out 
+  Xnor2_one[0:7] a[0:31] nor4_one_out[0:7] nor4
+  Xnand2_one[0:1] nor4_one_out[0:7] nand4_one_out[0:1] nand4
+  xnor2_three nand4_one_out[0:1] out nor2
+.ends
+
+* NOR Gate for z
+Xz rd1_[31:0] z z_ckt
+
+*******************************************************************************
+* Arithmetic Logic Unit
+*******************************************************************************
+
+* Modified Carry-Lookahead Adder
+.subckt mpfa a b cin sum p not_g
+    Xp a b p xor2
+    Xnot_g a b not_g nand2
+    Xsum p cin sum xor2
+.ends
+
+.subckt 4bit_carry_one cin p not_g c1
+    Xnand2_one p cin interm0 nand2
+    Xout not_g interm0 c1 nand2
+.ends
+
+.subckt 4bit_carry_two cin p[1:0] not_g1 g[0] c2
+    Xnand_one p[1] g[0] interm0 nand2
+    Xnand_two p[1:0] cin interm1 nand3
+    Xout not_g1 interm[1:0] c2 nand3
+.ends
+
+.subckt 4bit_carry_three cin p[2:0] not_g2 g[1:0] c3
+    Xnand_one p[2] g[1] interm0 nand2
+    Xnand_two p[2:1] g[0] interm1 nand3
+    Xnand_three p[2:0] cin interm2 nand4
+    Xout interm[2:0] not_g2 c3 nand4
+.ends
+
+.subckt 4bit_group_p p[3:0] group_p
+    Xnand_one p[3:0] ngroup_p nand4
+    Xout ngroup_p group_p inverter
+.ends
+
+.subckt 4bit_group_g p[3:1] not_g3 g[2:0] group_g
+    Xout g[0] p[3:1] not_g3 g[2:1] group_g 4bit_carry_three
+.ends
+
+.subckt 16bit_carry_one cin p g c1
+    Xinv_one g not_g inverter
+    Xnand_one p cin interm0 nand2
+    Xout not_g interm0 c1 nand2 
+.ends
+
+.subckt 16bit_carry_two cin p[1:0] g[1:0] c2
+    Xinv_one g1 not_g1 inverter
+    Xnand_one p1 g0 interm0 nand2
+    Xnand_two p[1:0] cin interm1 nand3
+    Xout not_g1 interm[0:1] c2 nand3
+.ends
+
+.subckt 16bit_carry_three cin p[2:0] g[2:0] c3
+    Xinv_one g2 not_g2 inverter
+    Xnand_one p2 g1 interm0 nand2
+    Xnand_two p[2:1] g0 interm1 nand3
+    Xnand_three p[2:0] cin interm2 nand4
+    Xout not_g2 interm[0:2] c3 nand4
+.ends
+
+.subckt 16bit_group_g p[3:1] g[3:0] group_g
+    Xinv_one g3 not_g3 inverter
+    Xout p[3:1] not_g3 g[2:0] group_g 4bit_group_g
+.ends
+
+.subckt 4bit_mcla a[3:0] b[3:0] c0 sum[3:0] c[3:1] group_p group_g
+    Xmpfa0 a0 b0 c0 sum0 p[0] not_g[0] mpfa
+    Xinv_one not_g[0] g[0] inverter
+    Xcarry_one c0 p[0] not_g[0] c1 4bit_carry_one
+
+    Xmpfa1 a1 b1 c1 sum1 p[1] not_g[1] mpfa
+    Xinv_two not_g[1] g[1] inverter
+    Xcarry_two c0 p[1:0] not_g[1] g[0] c2 4bit_carry_two
+
+    Xmpfa2 a2 b2 c2 sum2 p[2] not_g[2] mpfa
+    Xinv_three not_g[2] g[2] inverter
+    Xcarry_three c0 p[2:0] not_g[2] g[1:0] c3 4bit_carry_three
+
+    Xmpfa3 a3 b3 c3 sum3 p[3] not_g[3] mpfa
+    Xgroup_p p[3:0] group_p 4bit_group_p
+    Xgroup_g p[3:1] not_g[3] g[2:0] group_g 4bit_group_g
+.ends
+
+.subckt 16bit_mcla a[15:0] b[15:0] c0 sum[15:0] c[15:1] group_p group_g
+    Xmcla0 a[3:0] b[3:0] c0 sum[3:0] c[3:1] p[0] g[0] 4bit_mcla
+    Xcarry_one c0 p0 g0 c4 16bit_carry_one
+
+    Xmcla1 a[7:4] b[7:4] c4 sum[7:4] c[7:5] p[1] g[1] 4bit_mcla
+    Xcarry_two c0 p[1:0] g[1:0] c8 16bit_carry_two
+
+    Xmcla2 a[11:8] b[11:8] c8 sum[11:8] c[11:9] p[2] g[2] 4bit_mcla
+    Xcarry_three c0 p[2:0] g[2:0] c12 16bit_carry_three
+
+    Xmcla3 a[15:12] b[15:12] c12 sum[15:12] c[15:13] p[3] g[3] 4bit_mcla
+    Xgroup_p p[3:0] group_p 4bit_group_p
+    Xgroup_g p[3:1] g[3:0] group_g 16bit_group_g
+.ends
+
+* 32-bit MCLA
+.subckt add32 a[31:0] b[31:0] c0 sum[31:0] c[32:31]
+    X16mcla0 a[15:0] b[15:0] c0 sum[15:0] c[15:1] p[0] g[0] 16bit_mcla
+    Xcarry_one c0 p0 g0 c16 16bit_carry_one
+
+    X16mcla1 a[31:16] b[31:16] c16 sum[31:16] c[31:17] p[1] g[1] 16bit_mcla
+    Xcarry_two c0 p[1:0] g[1:0] c32 16bit_carry_two
+.ends
+
+* 32-bit Adder/Subtractor
+.subckt as32 a[31:0] b[31:0] op0 fas[31:0] n v z
+  Xinv[31:0] b[31:0] op0#32 bmux[31:0] xor2
+  Xadd32 a[31:0] bmux[31:0] op0 fas[31:0] cout[31:30] add32
+
+  .connect fas31 n
+  Xv cout[31:30] v xor2
+  Xz fas[31:0] z z_ckt
+.ends
+
+* 32-bit Comparator 
+.subckt cmp32 n v z op[2:1] fcmp[31:0]
+  .connect 0 fcmp[31:1]
+  Xlt n v lt xor2
+  Xeq z op1 eq nand2
+  Xlt_out lt op2 lt_out nand2
+  Xltz lt_out eq fcmp0 nand2
+.ends
+
+* Bitwise Comparison
+.subckt bool32 a[31:0] b[31:0] op[3:0] fbool[31:0]
+    Xmux[31:0] a[31:0] b[31:0] op0#32 op1#32 op2#32 op3#32 fbool[31:0] mux4
+.ends
+
+* 32-bit Shifter
+.subckt shift32 a[31:0] b[4:0] op[1:0] fshift[31:0]
+    * if shift right, reverse
+    Xreverse[31:0] op0#32 a[31:0] a[0:31] aop[31:0] mux2
+
+    * set padding bit
+    Xpad op1 0 a31 pad mux2
+
+    * Shift 16
+    Xmux_one[31:0] b4#32 aop[31:0] aop[15:0] pad#16 a_one[31:0] mux2
+
+    * Shift 8
+    Xmux_two[31:0] b3#32 a_one[31:0] a_one[23:0] pad#8 a_two[31:0] mux2
+
+    * Shift 4
+    Xmux_three[31:0] b2#32 a_two[31:0] a_two[27:0] pad#4 a_three[31:0] mux2
+
+    * Shift 2
+    Xmux_four[31:0] b1#32 a_three[31:0] a_three[29:0] pad#2 a_four[31:0] mux2
+
+    * Shift 1
+    Xmux_five[31:0] b0#32 a_four[31:0] a_four[30:0] pad a_five[31:0] mux2
+
+    * if reversed, reverse back to original
+    Xorig[31:0] op0#32 a_five[31:0] a_five[0:31] fshift[31:0] mux2
+.ends
+
+* Assemble ALU
+.subckt alu32 a[31:0] b[31:0] alufn[5:0] f[31:0]
+    Xas32 a[31:0] b[31:0] alufn0 fas[31:0] n v z as32
+    Xbool32 a[31:0] b[31:0] alufn[3:0] fbool[31:0] bool32 
+    Xshift32 a[31:0] b[4:0] alufn[1:0] fshift[31:0] shift32
+    Xcmp32 n v z alufn[2:1] fcmp[31:0] cmp32
+
+    Xmux[31:0] alufn4#32 alufn5#32 fas[31:0] fbool[31:0] fshift[31:0] fcmp[31:0] f[31:0] mux4
+.ends
+
+*******************************************************************************
+* MUXs for PCSEL, RA2SEL, BSEL, and WDSEL 
+*******************************************************************************
+Xmux_pcsel[8:0] pcsel0#9 pcsel1#9 incr[8:0] bt[8:0] jt[8:0] pc[8:0] out_pcsel[8:0] mux4
+
+Xmux_ra2sel[4:0] ra2sel#5 rb[4:0] rc[4:0] ra2_[4:0] mux2
+
+Xmux_bsel[31:0] bsel#32 rd2_[31:0] c15#16 c[15:0] out_bsel[31:0] mux2
+
+Xmux_wdsel[31:0] wdsel0#32 wdsel1#32 0#23 incr[8:0] out_alu[31:0] memrd[31:0] 0#32 wd[31:0] mux4
+
+*******************************************************************************
+* Program Counter (PC) and PC Reset
+*
+* Stores PC in register then increments by 4
+*******************************************************************************
+Xpc_reset[8:0] reset#9 out_pcsel[8:0] 0#9 pc_[8:0] mux2
+Xpc_reg[8:0] pc_[8:0] clk#9 pc[8:0] dreg
+
+Xpc_incr 0#29 vdd 0#2 0#23 pc[8:0] 0 pc_trash[31:9] incr[8:0] pc_unused[31:30] add32
+
+*******************************************************************************
+* Jump Target (JT)
+*******************************************************************************
+Xjt rd1_[8:0] jt[8:0] join
+
+*******************************************************************************
+* Branch Target (BT; PC + 4 + 4C)
+*
+* 0#23 incr[8:0]   ->  PC + 4
+* 0#23 c[6:0] 0#2  ->  4C  ->  c << 2
+*******************************************************************************
+Xbt 0#23 incr[8:0] 0#23 c[6:0] 0#2 0 bt_trash[31:9] bt[8:0] bt_unused[31:30] add32
+
+*******************************************************************************
+* Connect things together
+*******************************************************************************
+Xra1 ra[4:0] ra1_[4:0] join
+Xwa rc[4:0] wa[4:0] join
+Xmema out_alu[8:2] 0#2 mema[8:0] join
+Xmemwd rd2_[31:0] memwd[31:0] join
+
+*******************************************************************************
+* Instantiate ALU
+*******************************************************************************
+Xalu32 rd1_[31:0] out_bsel[31:0] alufn[5:0] out_alu[31:0] alu32
+
+*******************************************************************************
+* Reset Waveform
+*******************************************************************************
+Wreset reset nrz(0, 5, 10ns, 0ns, 0.001ns, 0.001ns)
++ 1 0
+
+*******************************************************************************
+* Plots
+*******************************************************************************
+
+* Plot some signals together
+Xjdisplaya ra2_b_wdsel[3:0] ra2sel bsel wdsel[1:0] join
+Xjdisplayb wr_werfs[2:0]    wr werf werf_          join
+
+.tran 1920ns 
+.plot pc[8:0]
+.plot betaop(opcode[5:0])
+
+* Ra, Rb, Rc, constant
+.plot d(ra[4:0])
+.plot d(rb[4:0])
+.plot d(rc[4:0])
+.plot sd(c[15:0])
+
+* PCSEL, RA2SEL, BSEL, WDSEL, ALUFN, Wr, WERF, WERF_
+.plot b(pcsel[1:0])
+.plot b(ra2_b_wdsel[3:0])
+.plot b(alufn[5:0])
+.plot b(wr_werfs[2:0])
+
+* data from address 1 and 2, respectively
+.plot sd(rd1_[31:0])
+.plot sd(rd2_[31:0])
+
+* data written to wa (only when werf_ == 1)
+.plot sd(wd[31:0])
+
+* memory address, read, write
+.plot d(mema[8:0])
+.plot sd(memrd[31:0])
+.plot sd(memwd[31:0])
+
