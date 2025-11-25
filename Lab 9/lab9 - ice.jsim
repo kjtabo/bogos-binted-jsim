@@ -377,10 +377,11 @@ Wreset reset nrz(0, 5, 10ns, 0ns, 0.001ns, 0.001ns)
 .plot br_target[8:0]
 .plot inst[31:0]
 .plot betaop(opcode[5:0])
-.plot d(ra[4:0])
-.plot d(rb[4:0])
-.plot d(rc[4:0])
-.plot sd(c[15:0])
+* .plot d(ra[4:0])
+* .plot d(rb[4:0])
+* .plot d(rc[4:0])
+* .plot sd(c[15:0])
+.plot alu_out[31:0]
 * .plot b(pcsel[1:0])
 * .plot b(alufn[5:0])
 * .plot b(ra1_[4:0])
