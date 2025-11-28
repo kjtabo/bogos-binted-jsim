@@ -16,10 +16,10 @@
 *   3rd line = write port for ST instructions (memwd, controlled by wr signal)
 *   5th line = the memory statement itself
 *******************************************************************************
-Xmemory  vdd  0    0   pc[8:2]    inst[31:0]
+Xmemory  vdd  0    0   next_pc[8:2]    next_inst[31:0]
 +        vdd  0    0   mema[8:2]  memrd[31:0]
 +        0    clk  wr  mema[8:2]  memwd[31:0]
-+ $memory width=32 nlocations=128 file="sample.bin"
++ $memory width=32 nlocations=128 file="lab7.bin"
 
 *******************************************************************************
 * Xregisters is a register memory device to store your Beta registers r0 - r31.
@@ -30,7 +30,8 @@ Xmemory  vdd  0    0   pc[8:2]    inst[31:0]
 *   succeeding lines = initial values of the registers
 *******************************************************************************
 Xregisters  vdd  0    0      ra1_[4:0]  rd1_[31:0]
-+           vdd  0    0      ra2_[4:0]  rd2_[31:0]
++           vdd  0    0      rb[4:0]  rd2interm_[31:0]
++           vdd  0    0      rc[4:0]  rd3interm_[31:0]
 +           0    clk  werf_  wa[4:0]    wd[31:0]
 + $memory width=32 nlocations=32 contents=(
 +   0 0 0 0 0 0 0 0
@@ -93,8 +94,11 @@ Xcontrol  vdd  0  0  z opcode[5:0]  control[13:0]
 *******************************************************************************
 Xjcontrola control[13:12] pcsel[1:0] join
 Xjcontrolb control11      ra2sel     join
-Xjcontrolc control10      bsel       join
+Xjcontrolc control10      bsel join
+* Xbuf_bsel bsel_unbuf#32 bsel[31:0] buffer
 Xjcontrold control[9:8]   wdsel[1:0] join
+* Xbuf_wdsel0 wdsel_unbuf0#32 wdsel0_[31:0] buffer
+* Xbuf_wdsel1 wdsel_unbuf1#32 wdsel1_[31:0] buffer
 Xjcontrole control[7:2]   alufn[5:0] join
 Xjcontrolf reset control1 0     wr   mux2
 Xjcontrolg reset control0 0 werf     mux2
@@ -103,6 +107,7 @@ Xjcontrolg reset control0 0 werf     mux2
 * Also connect our instruction signal lines to our opcode, rc, ra, rb, and c.
 *******************************************************************************
 Xjinsta inst[31:26] opcode[5:0] join
+Xjinsta_next next_inst[31:26] next_opcode[5:0] join
 Xjinstb inst[25:21] rc[4:0]     join
 Xjinstc inst[20:16] ra[4:0]     join
 Xjinstd inst[15:11] rb[4:0]     join
@@ -113,17 +118,25 @@ Xjinste inst[15:0]  c[15:0]     join
 * Note that you will need to remove these signals from this section once you
 * connect them elsewhere!
 *******************************************************************************
-.connect clk2 clk
+.connect clk1 clk
 * .connect 0 wa[4:0]
 * .connect vdd mema[8:0]
 
 *******************************************************************************
 * 32-bit fastest CLA. reference: https://ieeexplore.ieee.org/document/1409882
 *******************************************************************************
+.subckt xor2_fast a b out
+    Xinv_one a not_a inverter
+    Xinv_two b not_b inverter
+    Xnand_one a not_b a_not_b nand2
+    Xnand_two b not_a b_not_a nand2
+    Xnand_out a_not_b b_not_a out nand2
+.ends
+
 .subckt mpfa a b cin sum p not_g
-    Xp a b p xor2
+    Xp a b p xor2_fast
     Xnot_g a b not_g nand2
-    Xsum p cin sum xor2
+    Xsum p cin sum xor2_fast
 .ends
 
 .subckt 4bit_carry_one cin p not_g c1
@@ -227,6 +240,22 @@ Xjinste inst[15:0]  c[15:0]     join
     X16mcla1 a[31:16] b[31:16] c16 sum[31:16] c[31:17] p[1] g[1] 16bit_mcla
     Xcarry_two c0 p[1:0] g[1:0] c32 16bit_carry_two
 .ends
+*******************************************************************************
+* 32-bit MCLA with Carry-Selection.
+*******************************************************************************
+.subckt 32bit_mcla_csa a[31:0] b[31:0] c0 sum[31:0] c[32:31]
+    X16mcla0 a[15:0] b[15:0] c0 sum[15:0] c[15:1] p[0] g[0] 16bit_mcla
+    Xcarry_one c0 p0 g0 c16 16bit_carry_one
+
+    X16mcla1_noc a[31:16] b[31:16] 0 sum1_out[31:16] c1_out[31:17] p1_out[1] g1_out[1] 16bit_mcla
+    X16mcla1_yesc a[31:16] b[31:16] vdd sum2_out[31:16] c2_out[31:17] p2_out[1] g2_out[1] 16bit_mcla
+    Xcarry_select c16#16 sum1_out[31:16] sum2_out[31:16] sum[31:16] mux2
+    Xc_select c16 c1_out[31] c2_out[31] c[31] mux2
+    Xp_select c16 p1_out[1] p2_out[1] p[1] mux2
+    Xg_select c16 g1_out[1] g2_out[1] g[1] mux2
+    Xcarry_two c0 p[1:0] g[1:0] c32 16bit_carry_two
+.ends
+
 
 *******************************************************************************
 * 32-bit ALU
@@ -241,7 +270,7 @@ Xjinste inst[15:0]  c[15:0]     join
 .ends
 
 .subckt add32 a[31:0] b[31:0] cin0 sum[31:0] cout[31:30]
-    X32bit_mcla a[31:0] b[31:0] cin0 sum[31:0] cout[31:30] 32bit_mcla
+    X32bit_mcla a[31:0] b[31:0] cin0 sum[31:0] cout[31:30] 32bit_mcla_csa
 .ends
 
 .subckt z_ckt a[0:31] out 
@@ -256,17 +285,18 @@ Xjinste inst[15:0]  c[15:0]     join
   * Xinv[31:0] b[31:0] binv[31:0] inverter
   * Xmux[31:0] op0#32 b[31:0] binv[31:0] bmux[31:0] mux2
   * Changed to only using XOR Gates (32 gates)
-  Xinv[31:0] b[31:0] op0#32 bmux[31:0] xor2
+*   Xbuf_op0 op0#32 buf_op0[31:0] buffer_8
+  Xinv[31:0] b[31:0] op0#32 bmux[31:0] xor2_fast
   Xadd32 a[31:0] bmux[31:0] op0 fas[31:0] cout[31:30] add32
 
   .connect fas31 n
-  Xv cout[31:30] v xor2
+  Xv cout[31:30] v xor2_fast
   Xz fas[31:0] z z_ckt
 .ends
 
 .subckt cmp32 n v z op[2:1] fcmp[31:0]
   .connect 0 fcmp[31:1]
-  Xlt n v lt xor2
+  Xlt n v lt xor2_fast
   Xeq z op1 eq nand2
   Xlt_out lt op2 lt_out nand2
   Xltz lt_out eq fcmp0 nand2
@@ -328,31 +358,33 @@ Xrd1_jt rd1_[31:0] jt[31:0] join
 * Xtarget_new c[5:0] 0#2 next_pc[7:0] 0 br_target[7:0] unusedd[8:1] 8bit_mcla
 * .connect 0 br_target
 
-Xtarget_newer c[13:0] 0#2 0#8 next_pc[7:0] 0 br_target[15:0] unusedd[15:1] unused_p unused_g 16bit_mcla
+Xtarget_newer c[13:0] 0#2 0#8 pc_incr[7:0] 0 br_target[15:0] unusedd[15:1] unused_p unused_g 16bit_mcla
 
-Xpcsel_mux[0:8] pcsel0#9 pcsel1#9 next_pc[8:0] br_target[8:0] jt[8:0] pc[8:0] pcsel_mux[8:0] mux4
-Xreset_mux reset#9 pcsel_mux[8:0] 0#9 pcsel_mux_rst[8:0] mux2
-Xpc[0:8] pcsel_mux_rst[8:0] clk#9 pc[8:0] dreg
+Xinstreg next_inst[31:0] clk#32 inst[31:0] dreg
+
+Xpcsel_mux[0:8] pcsel0#9 pcsel1#9 pc_incr[8:0] br_target[8:0] jt[8:0] pc[8:0] pcsel_mux[8:0] mux4
+Xreset_mux reset#9 pcsel_mux[8:0] 0#9 next_pc[8:0] mux2
+Xpc[0:8] next_pc[8:0] clk#9 pc[8:0] dreg
 
 * the realest +4 ever
-Xnext_pc 0#1 pc[8:2] 0#8 vdd next_pc[9:2] unused[8:1] 8bit_mcla
-.connect 0 next_pc[1:0]
-.connect 0 next_pc[31:10]
+Xpc_incr 0#1 pc[8:2] 0#8 vdd pc_incr[9:2] unused[8:1] 8bit_mcla
+.connect 0 pc_incr[1:0]
+.connect 0 pc_incr[31:10]
 
 * Everything past this point is related to ALU and Register logic.
-Xbsel_mux[0:31] bsel#32 rd2_[31:0] 0#16 c[15:0] bsel_mux[31:0] mux2
+Xbuf_c c[15]#16 buf_c[31:16] buffer_8
+Xbsel_mux[0:31] bsel#32 rd2_[31:0] buf_c[31:16] c[15:0] bsel_mux[31:0] mux2
 Xalu rd1_[31:0] bsel_mux[31:0] alufn[5:0] alu_out[31:0] alu32
-Xalu_ld alu_out[8:2] mema[8:2] join
-.connect 0 mema[1:0]
+Xmema buf_c[31:16] c[15:0] rd1_[31:0] 0 mema[31:0] unuseddd[31:30] add32
 
 Xst rd2_[31:0] memwd[31:0] join
 
 Xreg_wa rc[4:0] wa[4:0] join 
 
-Xwdsel_mux[31:0] wdsel0#32 wdsel1#32 next_pc[31:0] alu_out[31:0] memrd[31:0] 0#32 wd[31:0] mux4
+Xwdsel_mux[31:0] wdsel0#32 wdsel1#32 pc_incr[31:0] alu_out[31:0] memrd[31:0] 0#32 wd[31:0] mux4
 
 Xra1_rd ra[4:0] ra1_[4:0] join
-Xra2sel_mux[0:4] ra2sel#5 rb[4:0] rc[4:0] ra2_[4:0] mux2
+Xra2sel_mux[31:0] ra2sel#32 rd2interm_[31:0] rd3interm_[31:0] rd2_[31:0] mux2
 
 Xcpu_z rd1_[31:0] z z_ckt
 
@@ -371,12 +403,13 @@ Wreset reset nrz(0, 5, 10ns, 0ns, 0.001ns, 0.001ns)
 .plot clk
 .plot reset
 .plot pc[8:0]
+.plot next_pc[8:0]
+.plot betaop(opcode[5:0])
+.plot betaop(next_opcode[5:0])
 * .plot z
 * .plot br_target[8:0]
 * .plot next_pc[8:0]
 .plot br_target[8:0]
-.plot inst[31:0]
-.plot betaop(opcode[5:0])
 * .plot d(ra[4:0])
 * .plot d(rb[4:0])
 * .plot d(rc[4:0])
